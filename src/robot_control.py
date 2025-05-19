@@ -1,11 +1,10 @@
-import asyncio
 import csv
 import io
 import math
+import socket
+import telnetlib
 import time
 from ftplib import FTP_TLS
-
-import telnetlib3
 
 # from py_openshowvar import openshowvar
 
@@ -45,7 +44,7 @@ CSV_FILENAME = "DemoResults.csv"
 
 
 # === Functions ===
-async def trigger_camera(ip: str, user: str, password: str) -> None:
+def trigger_camera(ip: str, user: str, password: str) -> None:
     """
     Trigger the Cognex camera via Telnet connection.
 
@@ -61,16 +60,17 @@ async def trigger_camera(ip: str, user: str, password: str) -> None:
         Exception: If connection to camera fails or command execution fails
     """
     try:
-        reader, writer = await telnetlib3.open_connection(ip, 23)
-        await asyncio.sleep(0.1)
-        writer.write(user + "\r\n")
-        await asyncio.sleep(0.1)
-        writer.write("\r\n" if not password else password + "\r\n")
-        await asyncio.sleep(0.1)
-        writer.write("SE8\r\n")
-        await asyncio.sleep(0.5)
+        # Use Python's standard telnetlib module for synchronous connection
+        tn = telnetlib.Telnet(ip, 23, timeout=5)
+        time.sleep(0.1)
+        tn.write(f"{user}\r\n".encode("ascii"))
+        time.sleep(0.1)
+        tn.write(("\r\n" if not password else f"{password}\r\n").encode("ascii"))
+        time.sleep(0.1)
+        tn.write("SE8\r\n".encode("ascii"))
+        time.sleep(0.5)
         print("✅ Camera triggered successfully via Telnet.")
-        writer.close()
+        tn.close()
     except Exception as e:
         error_msg = f"❌ Telnet trigger failed: {e}"
         print(error_msg)

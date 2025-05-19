@@ -1,12 +1,13 @@
 import os
 import time
 import wave
+from io import BytesIO
 
+import librosa
 import numpy as np
 import pyaudio
 import torch
 from dotenv import load_dotenv
-from google import genai
 from silero_vad import (
     VADIterator,
     collect_chunks,
@@ -15,6 +16,7 @@ from silero_vad import (
     read_audio,
     save_audio,
 )
+from transformers import AutoProcessor, Qwen2AudioForConditionalGeneration
 
 from src.agent_common import graph
 from src.tts import speak_text
@@ -33,7 +35,30 @@ SPEECH_TIMEOUT = 10
 WAVE_OUTPUT_FILENAME = "temp_recording.wav"
 PROCESSED_AUDIO_FILENAME = "processed_recording.wav"
 
-transcription_client = genai.Client()
+
+
+def load_qwen_model():
+    try:
+        processor = AutoProcessor.from_pretrained(
+            "Qwen/Qwen2-Audio-7B-Instruct",
+        )
+
+        model = Qwen2AudioForConditionalGeneration.from_pretrained(
+            "Qwen/Qwen2-Audio-7B-Instruct",
+            device_map="auto",
+        )
+
+        print("Qwen2-Audio model loaded successfully!")
+        return processor, model
+
+    except Exception as e:
+        print(f"Error loading Qwen2-Audio model: {e}")
+        raise
+
+
+
+processor = None
+model = None
 
 
 USE_ONNX = False
@@ -165,7 +190,8 @@ def process_audio_with_vad(audio_file):
         return None
 
 
-def transcribe_audio(audio_file):
+def transcribe_audio_with_qwen(audio_file):
+    """Transcribe audio using Qwen2-Audio model with robotics context"""
     try:
         
         processed_file = process_audio_with_vad(audio_file)
@@ -173,28 +199,78 @@ def transcribe_audio(audio_file):
         if not processed_file:
             return None
 
-        with open(processed_file, "rb") as f:
-            audio_bytes = f.read()
+        print("Processing audio with Qwen2-Audio...")
 
-        response = transcription_client.models.generate_content(
-            model="gemini-2.5-flash-preview-04-17",
-            contents=[
-                """
-                You are a transcription assistant specialized in voice-controlled KUKA robot. Transcribe the audio using the robotics context to resolve unclear words.
-                Use your understanding of common robot commands (e.g., move axes, pick up, place, set home position, box, bin, convayor, wood, centimeters) to correct homophones and noisy input.
-                If uncertain about a term, provide your best guess in square brackets, e.g., [likely word].
-                The audio may be in English or French. Return only the clean transcription text without extra commentary.
-                """,
-                genai.types.Part.from_bytes(
-                    data=audio_bytes,
-                    mime_type="audio/wav",
-                ),
-            ],
+        
+        audio_array, _ = librosa.load(
+            processed_file, sr=processor.feature_extractor.sampling_rate
         )
 
-        return response.text
+        
+        conversation = [
+            {
+                "role": "system",
+                "content": "You are a transcription assistant specialized in voice-controlled KUKA robot. "
+                "Transcribe the audio precisely, focusing on robotics terminology and commands. "
+                "Common terms include: move axes, pick up, place, set home position, box, bin, "
+                "conveyor, wood, centimeters, millimeters, speed, acceleration, rotation. "
+                "Return only the clean transcription without any explanation or commentary.",
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "audio", "audio": audio_array},
+                    {
+                        "type": "text",
+                        "text": "Transcribe this audio accurately for robot control.",
+                    },
+                ],
+            },
+        ]
+
+        
+        text = processor.apply_chat_template(
+            conversation, add_generation_prompt=True, tokenize=False
+        )
+
+        
+        inputs = processor(
+            text=text,
+            audio=audio_array,
+            
+            return_tensors="pt",
+            padding=True,
+        )
+
+        
+        for key, value in inputs.items():
+            if hasattr(value, "to") and hasattr(model, "device"):
+                inputs[key] = value.to(model.device)
+
+        print("Generating transcription...")
+
+        
+        generate_ids = model.generate(
+            **inputs,
+            max_length=512,
+            
+            
+            
+        )
+        generate_ids = generate_ids[:, inputs.input_ids.size(1) :]
+
+        
+        response = processor.batch_decode(
+            generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
+        )[0]
+
+        return response
+
     except Exception as e:
-        print(f"Error transcribing audio: {e}")
+        print(f"Error transcribing audio with Qwen2-Audio: {e}")
+        import traceback
+
+        traceback.print_exc()
         return None
     finally:
         
@@ -205,10 +281,19 @@ def transcribe_audio(audio_file):
 
 
 def main():
-    print("Starting voice-controlled agent with Silero VAD integration...")
-    print("Press Ctrl+C to stop.")
-
+    
+    use_tts = True
     thread_id = "1"
+
+    print(
+        "Starting voice-controlled agent with Qwen2-Audio and Silero VAD integration..."
+    )
+    print("Using forced float16 precision, offline mode, TTS enabled")
+
+    
+    global processor, model
+    processor, model = load_qwen_model()
+
     config = {"configurable": {"thread_id": thread_id}}
 
     try:
@@ -220,7 +305,7 @@ def main():
                 print("No valid audio recorded. Please try again.")
                 continue
 
-            transcription = transcribe_audio(audio_file)
+            transcription = transcribe_audio_with_qwen(audio_file)
             if not transcription:
                 print(
                     "Failed to transcribe audio or no significant speech detected. Please try again."
@@ -243,7 +328,9 @@ def main():
                 final_response = event["messages"][-1].content
 
             print("\nAI Assistant:", final_response)
-            speak_text(final_response)
+
+            if use_tts:
+                speak_text(final_response)
     except KeyboardInterrupt:
         print("\nExiting voice-controlled agent. Goodbye!")
 
