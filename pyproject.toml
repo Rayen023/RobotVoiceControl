@@ -1,0 +1,22 @@
+[project]
+name = "robotvoicecontrol"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "azure-cognitiveservices-speech>=1.43.0",
+    "dotenv>=0.9.9",
+    "faiss-cpu>=1.11.0",
+    "google-genai>=1.15.0",
+    "langchain>=0.3.25",
+    "langchain-community>=0.3.24",
+    "langchain-google-genai>=2.1.4",
+    "langchain-openai>=0.3.17",
+    "langchain-voyageai>=0.1.5",
+    "langgraph>=0.4.5",
+    "numpy>=2.2.6",
+    "pyaudio>=0.2.14",
+    "pydub>=0.25.1",
+    "telnetlib3>=2.0.4",
+]
