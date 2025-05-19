@@ -15,6 +15,7 @@ Robot Voice Control allows you to interact with and control robot systems throug
    pip install -e .
    ```
 3. Create a `.env` file with required API keys
+sudo apt-get install -y clang portaudio19-dev python3-dev
 
 ## Usage
 

@@ -6,7 +6,7 @@ from io import BytesIO
 import librosa
 import numpy as np
 import pyaudio
-import torch
+#import torch
 from dotenv import load_dotenv
 from silero_vad import (
     VADIterator,
@@ -16,7 +16,8 @@ from silero_vad import (
     read_audio,
     save_audio,
 )
-from transformers import AutoProcessor, Qwen2AudioForConditionalGeneration
+from transformers import AutoProcessor
+from vllm import LLM, SamplingParams
 
 from src.agent_common import graph
 from src.tts import speak_text
@@ -36,29 +37,36 @@ WAVE_OUTPUT_FILENAME = "temp_recording.wav"
 PROCESSED_AUDIO_FILENAME = "processed_recording.wav"
 
 
-
 def load_qwen_model():
     try:
         processor = AutoProcessor.from_pretrained(
-            "Qwen/Qwen2-Audio-7B-Instruct",
+            "mlinmg/Qwen-2-Audio-Instruct-dynamic-fp8",
         )
 
-        model = Qwen2AudioForConditionalGeneration.from_pretrained(
-            "Qwen/Qwen2-Audio-7B-Instruct",
-            device_map="auto",
-        )
+        llm = LLM(
+            model="mlinmg/Qwen-2-Audio-Instruct-dynamic-fp8",
+            trust_remote_code=True,
+            gpu_memory_utilization=0.9,  # Adjust based on your GPU
+            enforce_eager=True,  # Ensure proper handling of audio inputs
+            limit_mm_per_prompt={"audio": 1},  # Limit to one audio per prompt
+           # max_model_len
+        #     max_model_len = 4096,
+        #     kv_cache_dtype="fp8",
+        #   calculate_kv_scales=True
+          )
 
-        print("Qwen2-Audio model loaded successfully!")
-        return processor, model
+
+        print("Qwen2-Audio model loaded successfully with vLLM!")
+        return processor, llm
 
     except Exception as e:
-        print(f"Error loading Qwen2-Audio model: {e}")
+        print(f"Error loading Qwen2-Audio model with vLLM: {e}")
         raise
 
 
 
 processor = None
-model = None
+llm = None  # Replace model with llm
 
 
 USE_ONNX = False
@@ -191,22 +199,22 @@ def process_audio_with_vad(audio_file):
 
 
 def transcribe_audio_with_qwen(audio_file):
-    """Transcribe audio using Qwen2-Audio model with robotics context"""
+    """Transcribe audio using Qwen2-Audio model with robotics context through vLLM"""
     try:
-        
+        # Process audio with VAD
         processed_file = process_audio_with_vad(audio_file)
 
         if not processed_file:
             return None
 
-        print("Processing audio with Qwen2-Audio...")
+        print("Processing audio with Qwen2-Audio via vLLM...")
 
-        
-        audio_array, _ = librosa.load(
+        # Load the audio file
+        audio_array, sampling_rate = librosa.load(
             processed_file, sr=processor.feature_extractor.sampling_rate
         )
 
-        
+        # Create the conversation format for Qwen2-Audio
         conversation = [
             {
                 "role": "system",
@@ -219,51 +227,39 @@ def transcribe_audio_with_qwen(audio_file):
             {
                 "role": "user",
                 "content": [
-                    {"type": "audio", "audio": audio_array},
-                    {
-                        "type": "text",
-                        "text": "Transcribe this audio accurately for robot control.",
-                    },
+                    {"type": "text", "text": "Transcribe this audio accurately for robot control."},
                 ],
             },
         ]
 
-        
+        # Format prompt for vLLM using the processor
         text = processor.apply_chat_template(
             conversation, add_generation_prompt=True, tokenize=False
         )
 
-        
-        inputs = processor(
-            text=text,
-            audio=audio_array,
-            
-            return_tensors="pt",
-            padding=True,
+        # Set up vLLM sampling parameters
+        sampling_params = SamplingParams(
+            temperature=0.1,  # Low temperature for transcription accuracy
+            max_tokens=512,
+            top_p=0.95,
         )
-
         
-        for key, value in inputs.items():
-            if hasattr(value, "to") and hasattr(model, "device"):
-                inputs[key] = value.to(model.device)
-
+        # Prepare the multi-modal input for vLLM
+        vllm_input = {
+            "prompt": text,
+            "multi_modal_data": {
+                "audio": [(audio_array, processor.feature_extractor.sampling_rate)]
+            }
+        }
+        
         print("Generating transcription...")
-
         
-        generate_ids = model.generate(
-            **inputs,
-            max_length=512,
-            
-            
-            
-        )
-        generate_ids = generate_ids[:, inputs.input_ids.size(1) :]
-
+        # Generate the transcription using vLLM
+        outputs = llm.generate(vllm_input, sampling_params=sampling_params)
         
-        response = processor.batch_decode(
-            generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
-        )[0]
-
+        # Extract the generated text
+        response = outputs[0].outputs[0].text
+        
         return response
 
     except Exception as e:
@@ -273,7 +269,7 @@ def transcribe_audio_with_qwen(audio_file):
         traceback.print_exc()
         return None
     finally:
-        
+        # Cleanup
         if os.path.exists(audio_file):
             os.remove(audio_file)
         if os.path.exists(PROCESSED_AUDIO_FILENAME):
@@ -281,18 +277,18 @@ def transcribe_audio_with_qwen(audio_file):
 
 
 def main():
-    
+    # Initialize
     use_tts = True
     thread_id = "1"
 
     print(
-        "Starting voice-controlled agent with Qwen2-Audio and Silero VAD integration..."
+        "Starting voice-controlled agent with Qwen2-Audio (vLLM) and Silero VAD integration..."
     )
-    print("Using forced float16 precision, offline mode, TTS enabled")
+    print("Using vLLM for optimized inference, offline mode, TTS enabled")
 
-    
-    global processor, model
-    processor, model = load_qwen_model()
+    # Load models
+    global processor, llm  # Changed model to llm
+    processor, llm = load_qwen_model()
 
     config = {"configurable": {"thread_id": thread_id}}
 
@@ -312,7 +308,7 @@ def main():
                 )
                 continue
 
-            
+            # Print transcription
             print("\n" + "=" * 50)
             print(f"You said: {transcription}")
             print("=" * 50 + "\n")
