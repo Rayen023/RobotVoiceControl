@@ -19,18 +19,18 @@ from src.agent_tools import (
     send_robot_to_initial_home_position,
 )
 
-chat_llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash-preview-04-17",
-    temperature=0,
-    max_tokens=None,
-    timeout=None,
-    max_retries=2,
-)
+# chat_llm = ChatGoogleGenerativeAI(
+#     model="gemini-2.5-flash-preview-04-17",
+#     temperature=0,
+#     max_tokens=None,
+#     timeout=None,
+#     max_retries=2,
+# )
 
-llm = ChatOpenAI(
+chat_llm = ChatOpenAI(
     openai_api_key=os.getenv("OPENROUTER_API_KEY"),
     openai_api_base=os.getenv("OPENROUTER_BASE_URL"),
-    model_name="google/gemini-2.5-flash-preview",  # openai/gpt-4o-mini
+    model_name="google/gemini-2.5-flash-preview",  # "openai/gpt-4o-mini",
     temperature=0,
     max_tokens=8096,
     timeout=None,
