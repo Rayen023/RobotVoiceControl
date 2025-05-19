@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from google import genai
 
 from src.agent_common import graph
-from tts import speak_text
+from src.tts import speak_text
 
 load_dotenv()
 
