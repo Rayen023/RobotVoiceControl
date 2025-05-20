@@ -13,7 +13,7 @@ def main():
     print("Starting text-based agent...")
     print("Type 'exit' to quit the application.")
 
-    thread_id = "1"
+    thread_id = "111"
     config = {"configurable": {"thread_id": thread_id}}
 
     try:

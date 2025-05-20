@@ -10,7 +10,6 @@ from langchain_core.tools import tool
 
 load_dotenv()
 
-
 def process_image(image_np: np.ndarray) -> Dict[str, Any]:
     """
     Process a single image frame with DeepFace and Gemini.
@@ -93,19 +92,42 @@ def get_emotion_and_description() -> str:
 
     Returns:
         A string with either an error message or image description with emotion data
+
     """
-    # Initialize camera
+
+    # max_cameras = 10
+    # available = [
+    # ]
+
+    # for i in range(max_cameras):
+    #     cap = cv2.VideoCapture(i,cv2.CAP_DSHOW)
+    #     if not cap.read()[0]:
+    #         print(f"camera {i} not found")
+    #         continue
+    #     available.append(i)
+    #     cap.release()
+    
+    # print(available)
     camera = cv2.VideoCapture(0)  # Use 0 for default camera
 
     if not camera.isOpened():
         return "Error: Could not open camera."
 
-    # Capture a single frame
-    ret, frame = camera.read()
+    while True:
+        ret, frame = camera.read()
+        if not ret:
+            camera.release()
+            return "Error: Could not capture image."
+
+        # Check if the image is mostly black
+        if np.any(frame > 10):  # Adjust the threshold if needed
+            break  # Exit the loop once a non-black image is captured
+
+        import time
+        time.sleep(1)  # Adjust sleep time as needed
+
     camera.release()
 
-    if not ret:
-        return "Error: Could not capture image."
 
     try:
         # Process the captured frame
@@ -139,3 +161,4 @@ def get_emotion_and_description() -> str:
 
     except Exception as e:
         return f"Error processing image: {str(e)}"
+#get_emotion_and_description()

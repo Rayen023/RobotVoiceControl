@@ -48,6 +48,8 @@ def send_robot_to_initial_home_position() -> str:
              or an error message with details about the failure point if an exception occurred.
     """
     try:
+        client = connect_to_robot(ROBOT_IP, ROBOT_PORT)
+
         # client = connect_to_robot(ROBOT_IP, ROBOT_PORT)
         cartesian_movement(
             client, 1432, 245, 1300, 178, 0, 180, Move="PTP"
@@ -98,17 +100,21 @@ def send_movement_command(
         'Success: Robot moved to position X:1532.0, Y:245.0, Z:1350.0'
     """
     try:
+        client = connect_to_robot(ROBOT_IP, ROBOT_PORT)
+
+        #try:
+        print(X,Y,Z)
         # client = connect_to_robot(ROBOT_IP, ROBOT_PORT)
         current_pos = client.read("$POS_ACT", debug=True).decode("utf-8")
-        print(f"Current position: {current_pos}")
+        #print(f"Current position: {current_pos}")
         current_data = current_pos.strip("{}").replace("E6POS:", "").split(",")
-        print(f"Current data: {current_data}")
+        #print(f"Current data: {current_data}")
         pos_dict = {
             item.split()[0]: float(item.split()[1])
             for item in current_data
             if len(item.split()) == 2
         }
-        print(f"Position dictionary: {pos_dict}")
+        #print(f"Position dictionary: {pos_dict}")
         movement = {
             "X": X,
             "Y": Y,
@@ -117,11 +123,11 @@ def send_movement_command(
             "B": B,
             "C": C,
         }
-        print(f"Movement dictionary: {movement}")
+        #print(f"Movement dictionary: {movement}")
 
         for axis, val in movement.items():
             pos_dict[axis] += val
-        print(f"New position dictionary: {pos_dict}")
+        #print(f"New position dictionary: {pos_dict}")
 
         cartesian_movement(
             client,
@@ -171,10 +177,13 @@ def send_pick_and_place_command(item2pick: str, location2place: str) -> str:
         'Success: Picked box and placed at blue bin'
     """
     try:
+        client = connect_to_robot(ROBOT_IP, ROBOT_PORT)
+
         # Trigger camera and get vision data
         trigger_camera(COGNEX_IP, FTP_USER, FTP_PASS)
         time.sleep(2)
         event, box_pattern, wood_pattern = fetch_cognex_patterns()
+        print(f"✅ Event={event}, box_pattern={box_pattern}, wood_pattern={wood_pattern}")
 
         if event is None:
             return "Failed: Could not fetch camera patterns"
@@ -187,28 +196,24 @@ def send_pick_and_place_command(item2pick: str, location2place: str) -> str:
 
         # Select pattern based on item type
         if item2pick == "box":
-            pattern = box_pattern or {}
-            if not box_pattern:
+            if box_pattern and float(box_pattern['X']) > 0 and float(box_pattern['Y']) > 0 : 
+                pattern = box_pattern
+            else :
                 return "Failed: Box pattern not detected by camera"
             pick_z = 1060
         elif item2pick == "wood":
-            pattern = wood_pattern or {}
-            if not wood_pattern:
-                return "Failed: Wood pattern not detected by camera"
-            pick_z = 1060
+            if wood_pattern and float(wood_pattern['X']) > 0 and float(wood_pattern['Y']) > 0 : 
+                pattern = wood_pattern
+            else :
+                return "Failed: wood pattern not detected by camera"
+            pick_z = 1046
+            pattern = wood_pattern
         else:
             return f"Failed: Unknown item type '{item2pick}'"
 
-        pick_x = pattern.get("X", 0)
-        pick_y = pattern.get("Y", 0)
-
-        # Fix the syntax error in the original code
-        pick_coords_angle = pattern.get("Angle", 0)  # Fixed from pattern.get["Angle"]
+        pick_x, pick_y, pick_coords_angle = pattern["X"] , pattern["Y"], pattern["Angle"]
 
         tool_offset = {"X": -56.5, "Y": 23.7, "Z": 0, "A": 0, "B": 0, "C": 0}
-        # CAMERA_TO_ROBOT_OFFSET = 180  # example; you must calibrate it
-        # true_rotation = CAMERA_TO_ROBOT_OFFSET - pick_coords_angle
-        # rotated_offset = compute_rotated_tool_offset(tool_offset, true_rotation)
 
         pick_and_place(
             client,
@@ -221,7 +226,7 @@ def send_pick_and_place_command(item2pick: str, location2place: str) -> str:
         )
 
         control_gripper(client, "open")
-        send_robot_to_initial_home_position()  # Fixed from send_robot_to_home_position
+        #send_robot_to_initial_home_position()  # initialized as tool so cannot pass as function
 
         return f"Success: Picked {item2pick} and placed at {location2place}"
 

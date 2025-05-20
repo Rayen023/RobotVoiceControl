@@ -55,7 +55,7 @@ The user input is from voice transcription which may contain errors. You need to
 - For robot control commands, prioritize safety by confirming potentially risky actions
 
 Remember previous interactions to maintain conversational context.
-If a tool call fails, report the error to the user without retrying.
+If a tool call fails, report the error to the user without retrying unless the user request a retry.
 """
 
 # Shared tools list

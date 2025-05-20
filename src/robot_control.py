@@ -6,29 +6,29 @@ import telnetlib
 import time
 from ftplib import FTP_TLS
 
-# from py_openshowvar import openshowvar
+from py_openshowvar import openshowvar
 
 
 # Mock openshowvar class for testing without actual robot connection
-class openshowvar:
-    def __init__(self, ip, port):
-        self.ip = ip
-        self.port = port
-        self.can_connect = True
-        print(f"Mock robot connection to {ip}:{port} initialized")
+# class openshowvar:
+#     def __init__(self, ip, port):
+#         self.ip = ip
+#         self.port = port
+#         self.can_connect = True
+#         print(f"Mock robot connection to {ip}:{port} initialized")
 
-    def read(self, variable, debug=False):
-        if debug:
-            print(f"Mock reading {variable}")
-        # Return a mock position for $POS_ACT
-        if variable == "$POS_ACT":
-            return b"E6POS: X 500.0, Y 300.0, Z 1200.0, A 180.0, B 0.0, C 180.0"
-        return b"0"
+#     def read(self, variable, debug=False):
+#         if debug:
+#             print(f"Mock reading {variable}")
+#         # Return a mock position for $POS_ACT
+#         if variable == "$POS_ACT":
+#             return b"E6POS: X 500.0, Y 300.0, Z 1200.0, A 180.0, B 0.0, C 180.0"
+#         return b"0"
 
-    def write(self, variable, value, debug=False):
-        if debug:
-            print(f"Mock writing {value} to {variable}")
-        return True
+#     def write(self, variable, value, debug=False):
+#         if debug:
+#             print(f"Mock writing {value} to {variable}")
+#         return True
 
 
 # === IP Configurations ===
@@ -160,12 +160,12 @@ def connect_to_robot(ip: str, port: int) -> openshowvar:
 
 def cartesian_movement(
     client: openshowvar,
-    x: float = 0,
-    y: float = 0,
-    z: float = 0,
-    a: float = 0,
-    b: float = 0,
-    c: float = 0,
+    x: int = 0,
+    y: int = 0,
+    z: int = 0,
+    a: int = 0,
+    b: int = 0,
+    c: int = 0,
     Move: str = None,
     tool_frame: dict = None,
 ) -> None:
@@ -174,12 +174,12 @@ def cartesian_movement(
 
     Args:
         client (openshowvar): Robot client object
-        x (float): X position coordinate
-        y (float): Y position coordinate
-        z (float): Z position coordinate
-        a (float): A rotation angle
-        b (float): B rotation angle
-        c (float): C rotation angle
+        x (int): X position coordinate
+        y (int): Y position coordinate
+        z (int): Z position coordinate
+        a (int): A rotation angle
+        b (int): B rotation angle
+        c (int): C rotation angle
         Move (str): Movement type (e.g., "PTP", "LIN")
         tool_frame (dict): Tool frame offset values
 
@@ -191,11 +191,22 @@ def cartesian_movement(
 
     tool_frame = tool_frame or {"X": 0, "Y": 0, "Z": 0, "A": 0, "B": 0, "C": 0}
     new_pos = f"{{X {x+tool_frame['X']:.3f}, Y {y+tool_frame['Y']:.3f}, Z {z+tool_frame['Z']:.3f}, A {a+tool_frame['A']:.3f}, B {b+tool_frame['B']:.3f}, C {c+tool_frame['C']:.3f}}}"
+    print('here 1', '*'*20)
     client.write("COM_E6POS", new_pos, debug=True)
+    print('here 2', '*'*20)
+
     client.write("$VEL.CP", "0.1", debug=True)
+    print('here 3', '*'*20)
+
     client.write("$ACC.CP", "0.1", debug=True)
+    print('here 4', '*'*20)
+
     client.write("$MOVE_CMD", Move, debug=True)
+    print('here 5', '*'*20)
+
     client.write("COM_ACTION", "3", debug=True)
+    print('here 6', '*'*20)
+
     print(f"🚀 Moving to {new_pos}")
 
 
@@ -266,6 +277,14 @@ def compute_rotated_tool_offset(tool_offset: dict, angle_deg: float) -> dict:
         "B": tool_offset.get("B", 0),
         "C": tool_offset.get("C", 0),
     }
+def parse_robot_data(data):
+    # Join all list elements into a single string, then strip the braces
+    full_string = ' '.join(data).strip('{}')
+    items = full_string.split()
+    
+    # Pair every two items (key and value)
+    result = {items[i]: float(items[i + 1]) for i in range(0, len(items), 2)}
+    return result
 
 
 def wait_for_target_position(
@@ -290,34 +309,40 @@ def wait_for_target_position(
     """
     if client is None:
         raise ValueError("Robot client is not connected")
+    print('here 1', '*'*20)
 
     if not all(key in target_position for key in ["X", "Y", "Z"]):
         raise ValueError("Target position must contain X, Y, and Z coordinates")
+    print('here 1', '*'*20)
 
     start_time = time.time()
 
     # Apply tool offset if provided
     if tool_frame:
         tool_offsets = {key: tool_frame.get(key, 0) for key in ["X", "Y", "Z"]}
+        print('here 1', '*'*20)
+
     else:
         tool_offsets = {"X": 0, "Y": 0, "Z": 0}
+        print('here 1', '*'*20)
 
     adjusted_target_position = {
         key: target_position[key] + tool_offsets[key] for key in ["X", "Y", "Z"]
     }
+    print('here 1', '*'*20)
+
     while True:
         # Read the current position from the robot
         current_position_raw = client.read("$POS_ACT", debug=True).decode("utf-8")
+        print('here 1', '*'*20)
+
         # Print raw data for debugging
-        print(f"Current position: {current_position_raw}")
+        #print(f"Current position: {current_position_raw}")
         current_data = current_position_raw.replace("E6POS:", "").strip().split(",")
-        print(f"Current data: {current_data}")
-        current_position = {}
-        for item in current_data:
-            if len(item.split()) == 2:
-                key, value = item.split()
-                current_position[key] = float(value)
-        print(f"Position dictionary: {current_position}")
+        #print(f"Current data: {current_data}")
+        current_position = parse_robot_data(current_data)
+        
+        #print(f"Position dictionary: {current_position}")
 
         # Compare only X, Y, and Z positions
         position_reached = all(
