@@ -18,6 +18,7 @@ from src.agent_tools import (
     send_pick_and_place_command,
     send_robot_to_initial_home_position,
 )
+from src.simple_emotion_detector import get_emotion_and_description
 
 # chat_llm = ChatGoogleGenerativeAI(
 #     model="gemini-2.5-flash-preview-04-17",
@@ -63,6 +64,7 @@ tools = [
     send_movement_command,
     send_pick_and_place_command,
     send_robot_to_initial_home_position,
+    get_emotion_and_description,
 ]
 
 
