@@ -1,5 +1,6 @@
 import os
 import time
+import uuid
 import wave
 
 import numpy as np
@@ -19,17 +20,17 @@ from silero_vad import (
 from src.agent_common import graph
 from src.tts import speak_text
 
+thread_id = str(uuid.uuid4())  # Generate a unique thread ID for each session
+
 load_dotenv()
 
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 16000
 CHUNK = 512
-MAX_RECORD_SECONDS = 30  
-SILENCE_THRESHOLD = (
-    4.0  
-)
-SPEECH_TIMEOUT = 10  
+MAX_RECORD_SECONDS = 30
+SILENCE_THRESHOLD = 4.0
+SPEECH_TIMEOUT = 10
 WAVE_OUTPUT_FILENAME = "temp_recording.wav"
 PROCESSED_AUDIO_FILENAME = "processed_recording.wav"
 
@@ -47,15 +48,13 @@ def record_audio():
         format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK
     )
 
-    print(
-        "Listening... (Speak now, will stop recording when you finish)"
-    )  
+    print("Listening... (Speak now, will stop recording when you finish)")
     vad_iterator = VADIterator(
         model=vad_model,
-        threshold=0.6,  
+        threshold=0.6,
         sampling_rate=RATE,
-        min_silence_duration_ms=5000,  
-        speech_pad_ms=500,  
+        min_silence_duration_ms=5000,
+        speech_pad_ms=500,
     )
 
     frames = []
@@ -76,25 +75,20 @@ def record_audio():
             current_time = time.time()
             elapsed_time = current_time - start_time
 
-            
             if vad_result is not None and "start" in vad_result:
                 is_speech_started = True
-                last_speech_time = (
-                    current_time  
-                )
+                last_speech_time = current_time
             if vad_result is not None and "end" in vad_result:
                 if is_speech_started:
-                    
+
                     print("Speech pause detected, continuing to listen for more...")
-                    
+
                     last_speech_time = current_time
 
-            
             if elapsed_time > MAX_RECORD_SECONDS:
                 print("Maximum recording time reached")
                 break
 
-            
             if is_speech_started and (
                 current_time - last_speech_time > SILENCE_THRESHOLD
             ):
@@ -133,9 +127,9 @@ def process_audio_with_vad(audio_file):
             wav,
             vad_model,
             sampling_rate=RATE,
-            threshold=0.45,  
-            min_silence_duration_ms=1500,  
-            speech_pad_ms=500,  
+            threshold=0.45,
+            min_silence_duration_ms=1500,
+            speech_pad_ms=500,
         )
 
         if not speech_timestamps:
@@ -152,7 +146,6 @@ def process_audio_with_vad(audio_file):
             )
             return None
 
-        
         save_audio(
             PROCESSED_AUDIO_FILENAME,
             collect_chunks(speech_timestamps, wav),
@@ -167,7 +160,7 @@ def process_audio_with_vad(audio_file):
 
 def transcribe_audio(audio_file):
     try:
-        
+
         processed_file = process_audio_with_vad(audio_file)
 
         if not processed_file:
@@ -197,7 +190,7 @@ def transcribe_audio(audio_file):
         print(f"Error transcribing audio: {e}")
         return None
     finally:
-        
+
         if os.path.exists(audio_file):
             os.remove(audio_file)
         if os.path.exists(PROCESSED_AUDIO_FILENAME):
@@ -208,7 +201,6 @@ def main():
     print("Starting voice-controlled agent with Silero VAD integration...")
     print("Press Ctrl+C to stop.")
 
-    thread_id = "1"
     config = {"configurable": {"thread_id": thread_id}}
 
     try:
@@ -227,7 +219,6 @@ def main():
                 )
                 continue
 
-            
             print("\n" + "=" * 50)
             print(f"You said: {transcription}")
             print("=" * 50 + "\n")

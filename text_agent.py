@@ -1,3 +1,5 @@
+import uuid
+
 from dotenv import load_dotenv
 from google import genai
 
@@ -7,13 +9,13 @@ load_dotenv()
 
 # Initialize the GenAI client and LLM
 genai_client = genai.Client()
+thread_id = str(uuid.uuid4())  # Generate a unique thread ID for each session
 
 
 def main():
     print("Starting text-based agent...")
     print("Type 'exit' to quit the application.")
 
-    thread_id = "111"
     config = {"configurable": {"thread_id": thread_id}}
 
     try:

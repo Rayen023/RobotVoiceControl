@@ -1,12 +1,14 @@
 import os
 import time
+import uuid
 import wave
 from io import BytesIO
 
 import librosa
 import numpy as np
 import pyaudio
-#import torch
+
+# import torch
 from dotenv import load_dotenv
 from silero_vad import (
     VADIterator,
@@ -22,17 +24,17 @@ from vllm import LLM, SamplingParams
 from src.agent_common import graph
 from src.tts import speak_text
 
+thread_id = str(uuid.uuid4())  # Generate a unique thread ID for each session
+
 load_dotenv()
 
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 16000
 CHUNK = 512
-MAX_RECORD_SECONDS = 30  
-SILENCE_THRESHOLD = (
-    4.0  
-)
-SPEECH_TIMEOUT = 10  
+MAX_RECORD_SECONDS = 30
+SILENCE_THRESHOLD = 4.0
+SPEECH_TIMEOUT = 10
 WAVE_OUTPUT_FILENAME = "temp_recording.wav"
 PROCESSED_AUDIO_FILENAME = "processed_recording.wav"
 
@@ -49,12 +51,11 @@ def load_qwen_model():
             gpu_memory_utilization=0.9,  # Adjust based on your GPU
             enforce_eager=True,  # Ensure proper handling of audio inputs
             limit_mm_per_prompt={"audio": 1},  # Limit to one audio per prompt
-           # max_model_len
-        #     max_model_len = 4096,
-        #     kv_cache_dtype="fp8",
-        #   calculate_kv_scales=True
-          )
-
+            # max_model_len
+            #     max_model_len = 4096,
+            #     kv_cache_dtype="fp8",
+            #   calculate_kv_scales=True
+        )
 
         print("Qwen2-Audio model loaded successfully with vLLM!")
         return processor, llm
@@ -62,7 +63,6 @@ def load_qwen_model():
     except Exception as e:
         print(f"Error loading Qwen2-Audio model with vLLM: {e}")
         raise
-
 
 
 processor = None
@@ -80,15 +80,13 @@ def record_audio():
         format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK
     )
 
-    print(
-        "Listening... (Speak now, will stop recording when you finish)"
-    )  
+    print("Listening... (Speak now, will stop recording when you finish)")
     vad_iterator = VADIterator(
         model=vad_model,
-        threshold=0.6,  
+        threshold=0.6,
         sampling_rate=RATE,
-        min_silence_duration_ms=5000,  
-        speech_pad_ms=500,  
+        min_silence_duration_ms=5000,
+        speech_pad_ms=500,
     )
 
     frames = []
@@ -109,25 +107,20 @@ def record_audio():
             current_time = time.time()
             elapsed_time = current_time - start_time
 
-            
             if vad_result is not None and "start" in vad_result:
                 is_speech_started = True
-                last_speech_time = (
-                    current_time  
-                )
+                last_speech_time = current_time
             if vad_result is not None and "end" in vad_result:
                 if is_speech_started:
-                    
+
                     print("Speech pause detected, continuing to listen for more...")
-                    
+
                     last_speech_time = current_time
 
-            
             if elapsed_time > MAX_RECORD_SECONDS:
                 print("Maximum recording time reached")
                 break
 
-            
             if is_speech_started and (
                 current_time - last_speech_time > SILENCE_THRESHOLD
             ):
@@ -166,9 +159,9 @@ def process_audio_with_vad(audio_file):
             wav,
             vad_model,
             sampling_rate=RATE,
-            threshold=0.45,  
-            min_silence_duration_ms=1500,  
-            speech_pad_ms=500,  
+            threshold=0.45,
+            min_silence_duration_ms=1500,
+            speech_pad_ms=500,
         )
 
         if not speech_timestamps:
@@ -185,7 +178,6 @@ def process_audio_with_vad(audio_file):
             )
             return None
 
-        
         save_audio(
             PROCESSED_AUDIO_FILENAME,
             collect_chunks(speech_timestamps, wav),
@@ -227,7 +219,10 @@ def transcribe_audio_with_qwen(audio_file):
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": "Transcribe this audio accurately for robot control."},
+                    {
+                        "type": "text",
+                        "text": "Transcribe this audio accurately for robot control.",
+                    },
                 ],
             },
         ]
@@ -243,23 +238,23 @@ def transcribe_audio_with_qwen(audio_file):
             max_tokens=512,
             top_p=0.95,
         )
-        
+
         # Prepare the multi-modal input for vLLM
         vllm_input = {
             "prompt": text,
             "multi_modal_data": {
                 "audio": [(audio_array, processor.feature_extractor.sampling_rate)]
-            }
+            },
         }
-        
+
         print("Generating transcription...")
-        
+
         # Generate the transcription using vLLM
         outputs = llm.generate(vllm_input, sampling_params=sampling_params)
-        
+
         # Extract the generated text
         response = outputs[0].outputs[0].text
-        
+
         return response
 
     except Exception as e:
@@ -279,7 +274,6 @@ def transcribe_audio_with_qwen(audio_file):
 def main():
     # Initialize
     use_tts = True
-    thread_id = "1"
 
     print(
         "Starting voice-controlled agent with Qwen2-Audio (vLLM) and Silero VAD integration..."
