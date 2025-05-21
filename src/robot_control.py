@@ -61,7 +61,7 @@ COLLISION_ZONES = [
     "max": {"X": 1700, "Y": 950, "Z": 9999},
     },
 ]
-COLLISION_MARGIN = 200
+COLLISION_MARGIN = 100
 
 def is_in_collision_zone(position: dict) -> str:
     """
