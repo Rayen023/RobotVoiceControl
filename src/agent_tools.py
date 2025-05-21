@@ -85,7 +85,7 @@ def send_movement_command(
 
     Returns:
         str: Success message with final position coordinates if operation completed successfully,
-             or an error message with details about the failure point if an exception occurred.
+             or an error message if the movement is blocked due to collision risk or with details about the failure point if an exception occurred.
 
     Examples:
         - "Move forward 20cm" → X=200
@@ -127,7 +127,6 @@ def send_movement_command(
 
         for axis, val in movement.items():
             pos_dict[axis] += val
-        #print(f"New position dictionary: {pos_dict}")
 
         cartesian_movement(
             client,

@@ -43,7 +43,53 @@ FTP_CSV_FOLDER = "sdcard"
 CSV_FILENAME = "DemoResults.csv"
 
 
-# === Functions ===
+# === Collision Zones ===
+COLLISION_ZONES = [
+    {
+        "name": "camera_support",
+        "min": {"X": 1250, "Y": 950, "Z": -9999},
+        "max": {"X": 1700, "Y": 9999, "Z": 9999},
+    },  
+    {   
+    "name": "conveyor_zone",
+    "min": {"X": 990, "Y": -9999, "Z": -9999},
+    "max": {"X": 1870, "Y": 9999, "Z": 1010},
+    },
+    {
+    "name": "ceiling_camera",
+    "min": {"X": 1290, "Y": 490, "Z": 1800},
+    "max": {"X": 1700, "Y": 950, "Z": 9999},
+    },
+]
+COLLISION_MARGIN = 200
+
+def is_in_collision_zone(position: dict) -> str:
+    """
+    Check if the given position is inside any defined collision zone,
+    considering a safety margin in all directions.
+
+    Args:
+        position (dict): Position dictionary with X, Y, Z.
+
+    Returns:
+        str: Name of collision zone if detected, otherwise None.
+    """
+    for zone in COLLISION_ZONES:
+        min_x = zone["min"]["X"] - COLLISION_MARGIN
+        max_x = zone["max"]["X"] + COLLISION_MARGIN
+        min_y = zone["min"]["Y"] - COLLISION_MARGIN
+        max_y = zone["max"]["Y"] + COLLISION_MARGIN
+        min_z = zone["min"]["Z"] - COLLISION_MARGIN
+        max_z = zone["max"]["Z"] + COLLISION_MARGIN
+
+        if (
+            min_x <= position["X"] <= max_x and
+            min_y <= position["Y"] <= max_y and
+            min_z <= position["Z"] <= max_z
+        ):
+            print(f"Position {position} is inside or near collision zone: {zone['name']}")
+            return zone["name"]
+    return None# === Functions ===
 def trigger_camera(ip: str, user: str, password: str) -> None:
     """
     Trigger the Cognex camera via Telnet connection.
@@ -193,21 +239,17 @@ def cartesian_movement(
     new_pos = f"{{X {x+tool_frame['X']:.3f}, Y {y+tool_frame['Y']:.3f}, Z {z+tool_frame['Z']:.3f}, A {a+tool_frame['A']:.3f}, B {b+tool_frame['B']:.3f}, C {c+tool_frame['C']:.3f}}}"
     print('here 1', '*'*20)
     client.write("COM_E6POS", new_pos, debug=True)
-    print('here 2', '*'*20)
 
     client.write("$VEL.CP", "0.1", debug=True)
-    print('here 3', '*'*20)
 
     client.write("$ACC.CP", "0.1", debug=True)
-    print('here 4', '*'*20)
 
     client.write("$MOVE_CMD", Move, debug=True)
-    print('here 5', '*'*20)
 
     client.write("COM_ACTION", "3", debug=True)
-    print('here 6', '*'*20)
 
     print(f"🚀 Moving to {new_pos}")
+
 
 
 def control_gripper(client: openshowvar, state: str) -> None:
@@ -341,6 +383,13 @@ def wait_for_target_position(
         current_data = current_position_raw.replace("E6POS:", "").strip().split(",")
         #print(f"Current data: {current_data}")
         current_position = parse_robot_data(current_data)
+        print(current_data)
+        # Collision check
+        collision_zone = is_in_collision_zone(current_position)
+        if collision_zone:
+            client.write('COM_ACTION', '15', debug=True)
+            client.write('COM_VALUE1', '1', debug=True)
+            raise ValueError(f"❌ Collision risk detected in zone: {collision_zone}")    
         
         #print(f"Position dictionary: {current_position}")
 
@@ -359,7 +408,6 @@ def wait_for_target_position(
             raise TimeoutError(
                 f"Timeout waiting for target position. Current: {current_position}, Target: {adjusted_target_position}"
             )
-            break
 
         time.sleep(0.1)
 
