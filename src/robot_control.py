@@ -89,6 +89,7 @@ def is_in_collision_zone(position: dict) -> str:
         ):
             print(f"Position {position} is inside or near collision zone: {zone['name']}")
             return zone["name"]
+        #TODO write the interrupt code inside the in collision zone
     return None# === Functions ===
 def trigger_camera(ip: str, user: str, password: str) -> None:
     """
@@ -238,6 +239,8 @@ def cartesian_movement(
     tool_frame = tool_frame or {"X": 0, "Y": 0, "Z": 0, "A": 0, "B": 0, "C": 0}
     new_pos = f"{{X {x+tool_frame['X']:.3f}, Y {y+tool_frame['Y']:.3f}, Z {z+tool_frame['Z']:.3f}, A {a+tool_frame['A']:.3f}, B {b+tool_frame['B']:.3f}, C {c+tool_frame['C']:.3f}}}"
     print('here 1', '*'*20)
+    # TODO add check if new_pos is in a collision zone 
+    # TODO add clarification on exactly what that function expects as input and an example like what format is this new pos ? it is a string not a dict no ?
     client.write("COM_E6POS", new_pos, debug=True)
 
     client.write("$VEL.CP", "0.1", debug=True)
@@ -387,8 +390,8 @@ def wait_for_target_position(
         # Collision check
         collision_zone = is_in_collision_zone(current_position)
         if collision_zone:
-            client.write('COM_ACTION', '15', debug=True)
-            client.write('COM_VALUE1', '1', debug=True)
+            # TODO add command to interrupt robot movement, 
+            # TODO improve this funtions return, like why not have the error in it
             raise ValueError(f"❌ Collision risk detected in zone: {collision_zone}")    
         
         #print(f"Position dictionary: {current_position}")

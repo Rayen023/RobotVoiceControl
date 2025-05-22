@@ -195,13 +195,6 @@ DEF ActionLoop()
       LIN COM_E6POS
       INTERRUPT OFF 5
       COM_ACTION = 0
-      
-    CASE 15
-      COM_ACTCNT = COM_ACTCNT + 1
-      IF COM_VALUE1 == 1 THEN
-         HALT
-      ENDIF
-      COM_ACTION = 0
 
     ENDSWITCH
   ENDWHILE
