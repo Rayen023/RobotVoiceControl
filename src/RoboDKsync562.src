@@ -1,0 +1,216 @@
+&ACCESS RVP
+&REL 2
+DEF RoboDKsync562()
+  BAS(#INITMOV,0)
+  PTP $AXIS_ACT
+
+  ; Define Digital Input linked to the probe
+  INTERRUPT DECL 5 WHEN $IN[1] DO OnProbeTriggered()
+
+
+  $ORI_TYPE = #VAR
+  $CIRC_TYPE = #BASE
+  $VEL.ORI1 = 200
+  $VEL.ORI2 = 200
+  $ACC.ORI1 = 100
+  $ACC.ORI2 = 100
+
+  $VEL.CP = 3
+  $ACC.CP = 3
+
+
+  $BASE = {FRAME: X 0, Y 0, Z 0, A 0, B 0, C 0}
+  $TOOL = {FRAME: X 0, Y 0, Z 0, A 0, B 0, C 0}
+
+  $ADVANCE = 0
+  $APO.CPTP = 0
+  $APO.CDIS = 0
+
+  COM_ROUNDM = -1
+  COM_ACTCNT = 0
+
+  WHILE TRUE
+    ActionLoop()
+  ENDWHILE
+END
+
+DEF ActionLoop()
+  DECL INT io_id
+  DECL INT j_id
+  DECL INT program_id
+
+  COM_ACTION = 0
+
+  WHILE COM_ACTION >= 0
+    SWITCH COM_ACTION
+
+    ; Empty Action
+    CASE 1
+      COM_ACTCNT = COM_ACTCNT + 1
+      COM_ACTION = 0
+
+    ; Move Joints
+    CASE 2
+      IF COM_ROUNDM >= 0 THEN
+        PTP COM_E6AXIS C_PTP
+      ELSE
+        PTP COM_E6AXIS
+      ENDIF
+      COM_ACTION = 0
+
+    ; Move Linear
+    CASE 3
+      IF COM_ROUNDM >= 0 THEN
+        LIN COM_E6POS C_DIS
+      ELSE
+        LIN COM_E6POS
+      ENDIF
+      COM_ACTION = 0
+
+    ; Move Circular
+    CASE 4
+      IF COM_ROUNDM >= 0 THEN
+        CIRC COM_POS,COM_E6POS C_DIS
+      ELSE
+        CIRC COM_POS,COM_E6POS
+      ENDIF
+      COM_ACTION = 0
+
+    ; Set Tool
+    CASE 5
+      COM_ACTCNT = COM_ACTCNT + 1
+      $TOOL = COM_FRAME
+      COM_ACTION = 0
+
+    ; Set Speed
+    CASE 6
+      COM_ACTCNT = COM_ACTCNT + 1
+      $VEL.CP = COM_VALUE1
+      COM_ACTION = 0
+
+    ; Set Speed (Advanced)
+    CASE 7
+      COM_ACTCNT = COM_ACTCNT + 1
+      IF COM_VALUE1 > 0 THEN
+        $VEL.CP = COM_VALUE1
+      ENDIF
+      IF COM_VALUE2 > 0 THEN
+        ;$VEL.ORI1 = COM_VALUE2
+        ;$VEL.ORI2 = COM_VALUE2
+        FOR j_id = 1 TO 6
+          IF COM_VALUE2 > 100 THEN
+            $VEL_AXIS[j_id] = 100
+          ELSE
+            $VEL_AXIS[j_id] = COM_VALUE2
+          ENDIF
+        ENDFOR
+      ENDIF
+      IF COM_VALUE3 > 0 THEN
+        $ACC.CP = COM_VALUE3
+      ENDIF
+      IF COM_VALUE4 > 0 THEN
+        ;$ACC.ORI1 = COM_VALUE4
+        ;$ACC.ORI2 = COM_VALUE4
+        FOR j_id = 1 TO 6
+          IF COM_VALUE4 > 100 THEN
+            $ACC_AXIS[j_id] = 100
+          ELSE
+            $ACC_AXIS[j_id] = COM_VALUE4
+          ENDIF
+        ENDFOR
+      ENDIF
+      COM_ACTION = 0
+
+    ; Set Rounding
+    CASE 8
+      COM_ACTCNT = COM_ACTCNT + 1
+      IF COM_ROUNDM >= 0 THEN
+        IF COM_ROUNDM > 100 THEN
+          $APO.CPTP = 100
+        ELSE
+          $APO.CPTP = COM_ROUNDM
+        ENDIF
+        $APO.CDIS = COM_ROUNDM
+        $ADVANCE = 1
+      ELSE
+        $APO.CPTP = 0
+        $APO.CDIS = 0
+        $ADVANCE = 0
+      ENDIF
+      COM_ACTION = 0
+
+    ; Pause
+    CASE 9
+      COM_ACTCNT = COM_ACTCNT + 1
+      WAIT SEC COM_VALUE1
+      COM_ACTION = 0
+
+    ; Set Digital Output
+    CASE 10
+      COM_ACTCNT = COM_ACTCNT + 1
+      io_id = COM_VALUE1
+      IF COM_VALUE2 > 0.5 THEN
+        $OUT[io_id] = TRUE
+      ELSE
+        $OUT[io_id] = FALSE
+      ENDIF
+      COM_ACTION = 0
+
+    ; (OBSOLETE) Move Joints + Move Linear
+    CASE 11
+      PTP COM_E6AXIS
+      LIN COM_FRAME
+      WAIT SEC 0
+      COM_ACTION = 0
+
+    ; Wait for Digital Input
+    CASE 12
+      COM_ACTCNT = COM_ACTCNT + 1
+      io_id = COM_VALUE1
+      IF COM_VALUE2 > 0.5 THEN
+        WAIT FOR $IN[io_id] == TRUE
+      ELSE
+        WAIT FOR $IN[io_id] == FALSE
+      ENDIF
+      COM_ACTION = 0
+
+    ; Run Subprogram by ID from COM_VALUE1
+    ; To trigger from RoboDK use robot.RunCodeCustom("Program ID", INSTRUCTION_CALL_PROGRAM)
+    CASE 13
+      program_id = COM_VALUE1
+      SWITCH program_id
+      CASE 1
+        ; Drill()
+
+      CASE 2
+        ; Cut()
+      ENDSWITCH
+      COM_VALUE1 = 0
+      COM_ACTION = 0
+
+    ; Move Linear Search
+    CASE 14
+      COM_VALUE1 = 0
+      INTERRUPT ON 5
+      LIN COM_E6POS
+      INTERRUPT OFF 5
+      COM_ACTION = 0
+      
+    CASE 15
+      COM_ACTCNT = COM_ACTCNT + 1
+      IF COM_VALUE1 == 1 THEN
+         HALT
+      ENDIF
+      COM_ACTION = 0
+
+    ENDSWITCH
+  ENDWHILE
+END
+
+DEF OnProbeTriggered()
+  INTERRUPT OFF 5
+  COM_VALUE1 = 1
+  BRAKE
+  RESUME
+END
+
