@@ -170,7 +170,7 @@ def transcribe_audio(audio_file):
             audio_bytes = f.read()
 
         response = transcription_client.models.generate_content(
-            model="gemini-2.5-flash-preview-04-17",
+            model="gemini-2.5-flash-preview-05-20",  # google/gemini-2.5-flash-preview-05-20
             contents=[
                 """
                 You are a transcription assistant specialized in voice-controlled KUKA robot. Transcribe the audio using the robotics context to resolve unclear words.

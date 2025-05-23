@@ -31,7 +31,7 @@ from src.simple_emotion_detector import get_emotion_and_description
 chat_llm = ChatOpenAI(
     openai_api_key=os.getenv("OPENROUTER_API_KEY"),
     openai_api_base=os.getenv("OPENROUTER_BASE_URL"),
-    model_name="google/gemini-2.5-flash-preview",  # "openai/gpt-4o-mini",
+    model_name="google/gemini-2.5-flash-preview-05-20",  # "openai/gpt-4o-mini",
     temperature=0,
     max_tokens=8096,
     timeout=None,
