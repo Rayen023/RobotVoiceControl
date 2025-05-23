@@ -1,6 +1,6 @@
 &ACCESS RVP
 &REL 2
-DEF RoboDKsync562_interruptable()
+DEF RoboDKsync562()
   BAS(#INITMOV,0)
   PTP $AXIS_ACT
 
