@@ -8,7 +8,6 @@ from ftplib import FTP_TLS
 
 from py_openshowvar import openshowvar
 
-
 # Mock openshowvar class for testing without actual robot connection
 # class openshowvar:
 #     def __init__(self, ip, port):
@@ -49,30 +48,35 @@ COLLISION_ZONES = [
         "name": "camera_support",
         "min": {"X": 1250, "Y": 950, "Z": -9999},
         "max": {"X": 1700, "Y": 9999, "Z": 9999},
-    },  
-    {   
-    "name": "conveyor_zone",
-    "min": {"X": 990, "Y": -9999, "Z": -9999},
-    "max": {"X": 1870, "Y": 9999, "Z": 1010},
     },
     {
-    "name": "ceiling_camera",
-    "min": {"X": 1290, "Y": 490, "Z": 1800},
-    "max": {"X": 1700, "Y": 950, "Z": 9999},
+        "name": "conveyor_zone",
+        "min": {"X": 990, "Y": -9999, "Z": -9999},
+        "max": {"X": 1870, "Y": 9999, "Z": 1010},
+    },
+    {
+        "name": "ceiling_camera",
+        "min": {"X": 1290, "Y": 490, "Z": 1800},
+        "max": {"X": 1700, "Y": 950, "Z": 9999},
     },
 ]
 COLLISION_MARGIN = 100
 
-def is_in_collision_zone(position: dict) -> str:
+
+def is_in_collision_zone(position: dict, client: openshowvar = None) -> None:
     """
     Check if the given position is inside any defined collision zone,
-    considering a safety margin in all directions.
+    considering a safety margin in all directions. Raises an error if collision detected.
 
     Args:
         position (dict): Position dictionary with X, Y, Z.
+        client (openshowvar, optional): Robot client for sending interrupt commands.
 
     Returns:
-        str: Name of collision zone if detected, otherwise None.
+        None
+
+    Raises:
+        ValueError: If position is in a collision zone.
     """
     for zone in COLLISION_ZONES:
         min_x = zone["min"]["X"] - COLLISION_MARGIN
@@ -83,14 +87,23 @@ def is_in_collision_zone(position: dict) -> str:
         max_z = zone["max"]["Z"] + COLLISION_MARGIN
 
         if (
-            min_x <= position["X"] <= max_x and
-            min_y <= position["Y"] <= max_y and
-            min_z <= position["Z"] <= max_z
+            min_x <= position["X"] <= max_x
+            and min_y <= position["Y"] <= max_y
+            and min_z <= position["Z"] <= max_z
         ):
-            print(f"Position {position} is inside or near collision zone: {zone['name']}")
-            return zone["name"]
-        #TODO write the interrupt code inside the in collision zone
-    return None# === Functions ===
+            print(
+                f"Position {position} is inside or near collision zone: {zone['name']}"
+            )
+
+            # TODO: Add robot interrupt command here
+            # if client:
+            #     client.write("COM_ACTION", "stop_movement", debug=True)  # Add actual interrupt command
+
+            raise ValueError(f"❌ Collision risk detected in zone: {zone['name']}")
+
+    # No collision detected, function completes normally# === Functions ===
+
+
 def trigger_camera(ip: str, user: str, password: str) -> None:
     """
     Trigger the Cognex camera via Telnet connection.
@@ -228,19 +241,25 @@ def cartesian_movement(
         b (int): B rotation angle
         c (int): C rotation angle
         Move (str): Movement type (e.g., "PTP", "LIN")
-        tool_frame (dict): Tool frame offset values
-
-    Returns:
+        tool_frame (dict): Tool frame offset values    Returns:
         None
     """
     if client is None:
         raise ValueError("Robot client is not connected")
 
     tool_frame = tool_frame or {"X": 0, "Y": 0, "Z": 0, "A": 0, "B": 0, "C": 0}
-    new_pos = f"{{X {x+tool_frame['X']:.3f}, Y {y+tool_frame['Y']:.3f}, Z {z+tool_frame['Z']:.3f}, A {a+tool_frame['A']:.3f}, B {b+tool_frame['B']:.3f}, C {c+tool_frame['C']:.3f}}}"
-    print('here 1', '*'*20)
-    # TODO add check if new_pos is in a collision zone 
-    # TODO add clarification on exactly what that function expects as input and an example like what format is this new pos ? it is a string not a dict no ?
+
+    # Calculate final position including tool frame offset
+    final_position = {
+        "X": x + tool_frame["X"],
+        "Y": y + tool_frame["Y"],
+        "Z": z + tool_frame["Z"],
+    }
+
+    # Check if final position is in collision zone before moving
+    is_in_collision_zone(final_position, client)
+
+    new_pos = f"{{X {final_position['X']:.3f}, Y {final_position['Y']:.3f}, Z {final_position['Z']:.3f}, A {a+tool_frame['A']:.3f}, B {b+tool_frame['B']:.3f}, C {c+tool_frame['C']:.3f}}}"
     client.write("COM_E6POS", new_pos, debug=True)
 
     client.write("$VEL.CP", "0.1", debug=True)
@@ -252,7 +271,6 @@ def cartesian_movement(
     client.write("COM_ACTION", "3", debug=True)
 
     print(f"🚀 Moving to {new_pos}")
-
 
 
 def control_gripper(client: openshowvar, state: str) -> None:
@@ -322,11 +340,13 @@ def compute_rotated_tool_offset(tool_offset: dict, angle_deg: float) -> dict:
         "B": tool_offset.get("B", 0),
         "C": tool_offset.get("C", 0),
     }
+
+
 def parse_robot_data(data):
     # Join all list elements into a single string, then strip the braces
-    full_string = ' '.join(data).strip('{}')
+    full_string = " ".join(data).strip("{}")
     items = full_string.split()
-    
+
     # Pair every two items (key and value)
     result = {items[i]: float(items[i + 1]) for i in range(0, len(items), 2)}
     return result
@@ -354,47 +374,43 @@ def wait_for_target_position(
     """
     if client is None:
         raise ValueError("Robot client is not connected")
-    print('here 1', '*'*20)
+    print("here 1", "*" * 20)
 
     if not all(key in target_position for key in ["X", "Y", "Z"]):
         raise ValueError("Target position must contain X, Y, and Z coordinates")
-    print('here 1', '*'*20)
+    print("here 1", "*" * 20)
 
     start_time = time.time()
 
     # Apply tool offset if provided
     if tool_frame:
         tool_offsets = {key: tool_frame.get(key, 0) for key in ["X", "Y", "Z"]}
-        print('here 1', '*'*20)
+        print("here 1", "*" * 20)
 
     else:
         tool_offsets = {"X": 0, "Y": 0, "Z": 0}
-        print('here 1', '*'*20)
+        print("here 1", "*" * 20)
 
     adjusted_target_position = {
         key: target_position[key] + tool_offsets[key] for key in ["X", "Y", "Z"]
     }
-    print('here 1', '*'*20)
+    print("here 1", "*" * 20)
 
-    while True:
-        # Read the current position from the robot
+    while True:  # Read the current position from the robot
         current_position_raw = client.read("$POS_ACT", debug=True).decode("utf-8")
-        print('here 1', '*'*20)
+        print("here 1", "*" * 20)
 
         # Print raw data for debugging
-        #print(f"Current position: {current_position_raw}")
+        # print(f"Current position: {current_position_raw}")
         current_data = current_position_raw.replace("E6POS:", "").strip().split(",")
-        #print(f"Current data: {current_data}")
+        # print(f"Current data: {current_data}")
         current_position = parse_robot_data(current_data)
         print(current_data)
-        # Collision check
-        collision_zone = is_in_collision_zone(current_position)
-        if collision_zone:
-            # TODO add command to interrupt robot movement, 
-            # TODO improve this funtions return, like why not have the error in it
-            raise ValueError(f"❌ Collision risk detected in zone: {collision_zone}")    
-        
-        #print(f"Position dictionary: {current_position}")
+
+        # Collision check - this will raise ValueError if collision detected
+        is_in_collision_zone(current_position, client)
+
+        # print(f"Position dictionary: {current_position}")
 
         # Compare only X, Y, and Z positions
         position_reached = all(
