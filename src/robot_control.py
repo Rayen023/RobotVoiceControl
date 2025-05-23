@@ -292,13 +292,17 @@ def control_gripper(client: openshowvar, state: str) -> None:
         client.write(
             "COM_ACTION", "10", debug=True
         )  # Trigger CASE 10: Set Digital Output
-        client.write("COM_VALUE1", "15", debug=True)  # Set output pin number (OUT 15)
-        client.write("COM_VALUE2", "0", debug=True)  # Set OUT 15 to FALSE
+        client.write(
+            "COM_OUTPUT_PIN", "15", debug=True
+        )  # Set output pin number (OUT 15)
+        client.write("COM_OUTPUT_STATE", "0", debug=True)  # Set OUT 15 to FALSE
         client.write(
             "COM_ACTION", "10", debug=True
         )  # Trigger CASE 10: Set Digital Output
-        client.write("COM_VALUE1", "16", debug=True)  # Set output pin number (OUT 16)
-        client.write("COM_VALUE2", "0", debug=True)  # Set OUT 16 to FALSE
+        client.write(
+            "COM_OUTPUT_PIN", "16", debug=True
+        )  # Set output pin number (OUT 16)
+        client.write("COM_OUTPUT_STATE", "0", debug=True)  # Set OUT 16 to FALSE
         print("Gripper is CLOSED.")
 
     elif state == "open":
@@ -306,13 +310,17 @@ def control_gripper(client: openshowvar, state: str) -> None:
         client.write(
             "COM_ACTION", "10", debug=True
         )  # Trigger CASE 10: Set Digital Output
-        client.write("COM_VALUE1", "15", debug=True)  # Set output pin number (OUT 15)
-        client.write("COM_VALUE2", "1", debug=True)  # Set OUT 15 to TRUE
+        client.write(
+            "COM_OUTPUT_PIN", "15", debug=True
+        )  # Set output pin number (OUT 15)
+        client.write("COM_OUTPUT_STATE", "1", debug=True)  # Set OUT 15 to TRUE
         client.write(
             "COM_ACTION", "10", debug=True
         )  # Trigger CASE 10: Set Digital Output
-        client.write("COM_VALUE1", "16", debug=True)  # Set output pin number (OUT 16)
-        client.write("COM_VALUE2", "0", debug=True)  # Set OUT 16 to FALSE
+        client.write(
+            "COM_OUTPUT_PIN", "16", debug=True
+        )  # Set output pin number (OUT 16)
+        client.write("COM_OUTPUT_STATE", "0", debug=True)  # Set OUT 16 to FALSE
         print("Gripper is OPEN.")
 
     else:
