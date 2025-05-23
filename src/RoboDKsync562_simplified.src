@@ -1,11 +1,11 @@
 &ACCESS RVP
 &REL 2
-DEF RoboDKsync562()
+DEF ROBOTSYNC()
   BAS(#INITMOV,0)
   PTP $AXIS_ACT
 
   INTERRUPT DECL 5 WHEN $IN[1] DO OnProbeTriggered()
-  INTERRUPT DECL 6 WHEN $FLAG[1] DO StopMovementInterrupt()
+  INTERRUPT DECL 6 WHEN $IN[1] DO StopMovementInterrupt()
   INTERRUPT ON 6
 
   $ORI_TYPE = #VAR
@@ -64,6 +64,6 @@ END
 
 DEF StopMovementInterrupt()
   INTERRUPT OFF 6
-  $FLAG[1] = FALSE
-  BRAKE
+  $IN[1] = FALSE
+  BRAKE F
 END

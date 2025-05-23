@@ -60,7 +60,7 @@ COLLISION_ZONES = [
         "max": {"X": 1700, "Y": 950, "Z": 9999},
     },
 ]
-COLLISION_MARGIN = 100
+COLLISION_MARGIN = 500
 
 
 def is_in_collision_zone(position: dict, client: openshowvar = None) -> None:
@@ -95,7 +95,7 @@ def is_in_collision_zone(position: dict, client: openshowvar = None) -> None:
                 f"Position {position} is inside or near collision zone: {zone['name']}"
             )
 
-            client.write("$FLAG[1]", "TRUE", debug=True)
+            client.write("$IN[1]", "TRUE", debug=True)
 
             raise ValueError(f"❌ Collision risk detected in zone: {zone['name']}")
 
