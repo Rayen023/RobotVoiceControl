@@ -1,0 +1,68 @@
+&ACCESS RVP
+&REL 2
+DEF RoboDKsync562_simplified()
+  BAS(#INITMOV,0)
+  PTP $AXIS_ACT
+
+  ; Define Digital Input linked to the probe
+  INTERRUPT DECL 5 WHEN $IN[1] DO OnProbeTriggered()
+
+  $ORI_TYPE = #VAR
+  $CIRC_TYPE = #BASE
+  $VEL.ORI1 = 200
+  $VEL.ORI2 = 200
+  $ACC.ORI1 = 100
+  $ACC.ORI2 = 100
+
+  $VEL.CP = 3
+  $ACC.CP = 3
+
+  $BASE = {FRAME: X 0, Y 0, Z 0, A 0, B 0, C 0}
+  $TOOL = {FRAME: X 0, Y 0, Z 0, A 0, B 0, C 0}
+
+  $ADVANCE = 0
+  $APO.CPTP = 0
+  $APO.CDIS = 0
+
+  COM_ROUNDM = -1
+  COM_ACTCNT = 0
+
+  WHILE TRUE
+    ActionLoop()
+  ENDWHILE
+END
+
+DEF ActionLoop()
+  DECL INT io_id
+
+  COM_ACTION = 0
+
+  WHILE COM_ACTION >= 0
+    SWITCH COM_ACTION
+
+    ; Move Linear - Used by cartesian_movement() in Python
+    CASE 3
+        LIN COM_E6POS
+      COM_ACTION = 0
+
+    ; Set Digital Output - Used by control_gripper() in Python
+    CASE 10
+      COM_ACTCNT = COM_ACTCNT + 1
+      io_id = COM_VALUE1
+      IF COM_VALUE2 > 0.5 THEN
+        $OUT[io_id] = TRUE
+      ELSE
+        $OUT[io_id] = FALSE
+      ENDIF
+      COM_ACTION = 0
+
+    ENDSWITCH
+  ENDWHILE
+END
+
+DEF OnProbeTriggered()
+  INTERRUPT OFF 5
+  COM_VALUE1 = 1
+  BRAKE
+  RESUME
+END

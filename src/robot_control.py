@@ -254,21 +254,23 @@ def cartesian_movement(
         "X": x + tool_frame["X"],
         "Y": y + tool_frame["Y"],
         "Z": z + tool_frame["Z"],
-    }
-
-    # Check if final position is in collision zone before moving
+    }  # Check if final position is in collision zone before moving
     is_in_collision_zone(final_position, client)
 
     new_pos = f"{{X {final_position['X']:.3f}, Y {final_position['Y']:.3f}, Z {final_position['Z']:.3f}, A {a+tool_frame['A']:.3f}, B {b+tool_frame['B']:.3f}, C {c+tool_frame['C']:.3f}}}"
-    client.write("COM_E6POS", new_pos, debug=True)
+    client.write(
+        "COM_E6POS", new_pos, debug=True
+    )  # Set target position for CASE 3 LIN movement
 
-    client.write("$VEL.CP", "0.1", debug=True)
+    client.write("$VEL.CP", "0.1", debug=True)  # Set Cartesian path velocity (m/s)
 
-    client.write("$ACC.CP", "0.1", debug=True)
+    client.write("$ACC.CP", "0.1", debug=True)  # Set Cartesian path acceleration (m/s²)
 
-    client.write("$MOVE_CMD", Move, debug=True)
+    # client.write("$MOVE_CMD", Move, debug=True)  # Store movement type for reference
 
-    client.write("COM_ACTION", "3", debug=True)
+    client.write(
+        "COM_ACTION", "3", debug=True
+    )  # Trigger CASE 3: Move Linear (LIN COM_E6POS)
 
     print(f"🚀 Moving to {new_pos}")
 
@@ -286,24 +288,30 @@ def control_gripper(client: openshowvar, state: str) -> None:
     """
     if state == "close":
         # Close the gripper (Set OUT 15 to TRUE and OUT 16 to FALSE)
-        client.write("COM_ACTION", "10", debug=True)  # CASE 10 to control output
-        client.write("COM_VALUE1", "15", debug=True)  # OUT 15
-        client.write("COM_VALUE2", "0", debug=True)  # Set OUT 15 to TRUE (gripper open)
-        client.write("COM_ACTION", "10", debug=True)  # CASE 10 to control output
-        client.write("COM_VALUE1", "16", debug=True)  # OUT 16
+        client.write(
+            "COM_ACTION", "10", debug=True
+        )  # Trigger CASE 10: Set Digital Output
+        client.write("COM_VALUE1", "15", debug=True)  # Set output pin number (OUT 15)
+        client.write("COM_VALUE2", "0", debug=True)  # Set OUT 15 to FALSE
+        client.write(
+            "COM_ACTION", "10", debug=True
+        )  # Trigger CASE 10: Set Digital Output
+        client.write("COM_VALUE1", "16", debug=True)  # Set output pin number (OUT 16)
         client.write("COM_VALUE2", "0", debug=True)  # Set OUT 16 to FALSE
         print("Gripper is CLOSED.")
 
     elif state == "open":
         # Open the gripper (Set OUT 15 to TRUE and OUT 16 to TRUE)
-        client.write("COM_ACTION", "10", debug=True)  # CASE 10 to control output
-        client.write("COM_VALUE1", "15", debug=True)  # OUT 15
         client.write(
-            "COM_VALUE2", "1", debug=True
-        )  # Set OUT 15 to TRUE (gripper close)
-        client.write("COM_ACTION", "10", debug=True)  # CASE 10 to control output
-        client.write("COM_VALUE1", "16", debug=True)  # OUT 16
-        client.write("COM_VALUE2", "0", debug=True)  # Set OUT 16 to TRUE
+            "COM_ACTION", "10", debug=True
+        )  # Trigger CASE 10: Set Digital Output
+        client.write("COM_VALUE1", "15", debug=True)  # Set output pin number (OUT 15)
+        client.write("COM_VALUE2", "1", debug=True)  # Set OUT 15 to TRUE
+        client.write(
+            "COM_ACTION", "10", debug=True
+        )  # Trigger CASE 10: Set Digital Output
+        client.write("COM_VALUE1", "16", debug=True)  # Set output pin number (OUT 16)
+        client.write("COM_VALUE2", "0", debug=True)  # Set OUT 16 to FALSE
         print("Gripper is OPEN.")
 
     else:
