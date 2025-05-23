@@ -3,11 +3,11 @@
 DEF ROBOTSYNC()
   BAS(#INITMOV,0)
   PTP $AXIS_ACT
+  $IN[7] = FALSE
 
   INTERRUPT DECL 5 WHEN $IN[1] DO OnProbeTriggered()
-  INTERRUPT DECL 6 WHEN $IN[1] DO StopMovementInterrupt()
-  INTERRUPT ON 6
-
+  INTERRUPT DECL 10 WHEN $IN[7]==TRUE DO StopMovementInterrupt()
+  
   $ORI_TYPE = #VAR
   $CIRC_TYPE = #BASE
   $VEL.ORI1 = 200
@@ -27,7 +27,6 @@ DEF ROBOTSYNC()
 
   COM_ROUNDM = -1
   COM_ACTCNT = 0
-  $FLAG[1] = FALSE
 
   WHILE TRUE
     ActionLoop()
@@ -40,7 +39,9 @@ DEF ActionLoop()
   WHILE COM_ACTION >= 0
     SWITCH COM_ACTION
     CASE 3
+      INTERRUPT ON 10
       LIN COM_E6POS
+      INTERRUPT OFF 10
       COM_ACTION = 0
     CASE 10
       COM_ACTCNT = COM_ACTCNT + 1
@@ -63,7 +64,7 @@ DEF OnProbeTriggered()
 END
 
 DEF StopMovementInterrupt()
-  INTERRUPT OFF 6
-  $IN[1] = FALSE
   BRAKE F
+  WAIT FOR $IN[10]
+  $IN[7] = FALSE
 END

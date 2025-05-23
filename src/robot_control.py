@@ -94,12 +94,15 @@ def is_in_collision_zone(position: dict, client: openshowvar = None) -> None:
             print(
                 f"Position {position} is inside or near collision zone: {zone['name']}"
             )
+            read_value = client.read("$IN[7]", debug=True)
+            print(f"Interrupt signal read: {read_value}")
 
-            client.write("$IN[1]", "TRUE", debug=True)
+            client.write("$IN[7]", "TRUE", debug=True)
+            time.sleep(0.1)
+            read_value = client.read("$IN[7]", debug=True)
+            print(f"Interrupt signal read: {read_value}")
 
             raise ValueError(f"❌ Collision risk detected in zone: {zone['name']}")
-
-    # No collision detected, function completes normally# === Functions ===
 
 
 def trigger_camera(ip: str, user: str, password: str) -> None:
