@@ -5,7 +5,6 @@ import wave
 
 import numpy as np
 import pyaudio
-import torch
 from dotenv import load_dotenv
 from google import genai
 from silero_vad import (
