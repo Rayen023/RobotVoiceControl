@@ -97,7 +97,7 @@ def is_in_collision_zone(position: dict, client: openshowvar = None) -> None:
 
             # TODO: Add robot interrupt command here
             # if client:
-            #     client.write("COM_ACTION", "stop_movement", debug=True)  # Add actual interrupt command
+            #     client.write("COM_ACTION", "stop_movement", debug=True)
 
             raise ValueError(f"❌ Collision risk detected in zone: {zone['name']}")
 

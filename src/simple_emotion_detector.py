@@ -1,14 +1,38 @@
 from typing import Any, Dict
 
-import cv2
 import numpy as np
-from deepface import DeepFace
 from dotenv import load_dotenv
 from google import genai
 from google.genai.types import Part
 from langchain_core.tools import tool
 
+# Lazy imports for heavy dependencies
+_cv2 = None
+_deepface = None
+
+
+def _get_cv2():
+    """Lazy import for cv2"""
+    global _cv2
+    if _cv2 is None:
+        import cv2
+
+        _cv2 = cv2
+    return _cv2
+
+
+def _get_deepface():
+    """Lazy import for DeepFace"""
+    global _deepface
+    if _deepface is None:
+        from deepface import DeepFace
+
+        _deepface = DeepFace
+    return _deepface
+
+
 load_dotenv()
+
 
 def process_image(image_np: np.ndarray) -> Dict[str, Any]:
     """
@@ -20,10 +44,12 @@ def process_image(image_np: np.ndarray) -> Dict[str, Any]:
     Returns:
         Dictionary containing emotion analysis and image description
     """
-    result = {"face_analysis": [], "image_description_fr": None}
-
-    # Get image description using Gemini
+    result = {
+        "face_analysis": [],
+        "image_description_fr": None,
+    }  # Get image description using Gemini
     try:
+        cv2 = _get_cv2()  # Use lazy import
         gemini_client = genai.Client()
         _, buffer = cv2.imencode(".jpg", image_np)
         image_bytes_for_gemini = buffer.tobytes()
@@ -43,10 +69,9 @@ def process_image(image_np: np.ndarray) -> Dict[str, Any]:
         ):
             result["image_description_fr"] = gemini_response.text.strip()
     except Exception as e:
-        result["image_description_error"] = str(e)
-
-    # Process with DeepFace
+        result["image_description_error"] = str(e)  # Process with DeepFace
     try:
+        DeepFace = _get_deepface()  # Use lazy import
         analysis_results = DeepFace.analyze(
             img_path=image_np,
             actions=["emotion"],
@@ -93,9 +118,7 @@ def get_emotion_and_description() -> str:
     Returns:
         A string with either an error message or image description with emotion data
 
-    """
-
-    # max_cameras = 10
+    """  # max_cameras = 10
     # available = [
     # ]
 
@@ -106,8 +129,9 @@ def get_emotion_and_description() -> str:
     #         continue
     #     available.append(i)
     #     cap.release()
-    
+
     # print(available)
+    cv2 = _get_cv2()  # Use lazy import
     camera = cv2.VideoCapture(0)  # Use 0 for default camera
 
     if not camera.isOpened():
@@ -124,10 +148,10 @@ def get_emotion_and_description() -> str:
             break  # Exit the loop once a non-black image is captured
 
         import time
+
         time.sleep(1)  # Adjust sleep time as needed
 
     camera.release()
-
 
     try:
         # Process the captured frame
@@ -161,4 +185,6 @@ def get_emotion_and_description() -> str:
 
     except Exception as e:
         return f"Error processing image: {str(e)}"
-#get_emotion_and_description()
+
+
+# get_emotion_and_description()
