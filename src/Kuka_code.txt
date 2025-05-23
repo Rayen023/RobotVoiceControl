@@ -1,12 +1,11 @@
 &ACCESS RVP
 &REL 2
-DEF RoboDKsync562_interruptable()
+DEF RoboDKsync562_simplified()
   BAS(#INITMOV,0)
   PTP $AXIS_ACT
 
+  ; Define Digital Input linked to the probe
   INTERRUPT DECL 5 WHEN $IN[1] DO OnProbeTriggered()
-  INTERRUPT DECL 6 WHEN $FLAG[1] DO StopMovementInterrupt()
-  INTERRUPT ON 6
 
   $ORI_TYPE = #VAR
   $CIRC_TYPE = #BASE
@@ -27,7 +26,6 @@ DEF RoboDKsync562_interruptable()
 
   COM_ROUNDM = -1
   COM_ACTCNT = 0
-  $FLAG[1] = FALSE
 
   WHILE TRUE
     ActionLoop()
@@ -36,12 +34,18 @@ END
 
 DEF ActionLoop()
   DECL INT io_id
+
   COM_ACTION = 0
+
   WHILE COM_ACTION >= 0
     SWITCH COM_ACTION
+
+    ; Move Linear - Used by cartesian_movement() in Python
     CASE 3
       LIN COM_E6POS
       COM_ACTION = 0
+
+    ; Set Digital Output - Used by control_gripper() in Python
     CASE 10
       COM_ACTCNT = COM_ACTCNT + 1
       io_id = COM_VALUE1
@@ -51,6 +55,7 @@ DEF ActionLoop()
         $OUT[io_id] = FALSE
       ENDIF
       COM_ACTION = 0
+
     ENDSWITCH
   ENDWHILE
 END
@@ -60,10 +65,4 @@ DEF OnProbeTriggered()
   COM_VALUE1 = 1
   BRAKE
   RESUME
-END
-
-DEF StopMovementInterrupt()
-  INTERRUPT OFF 6
-  $FLAG[1] = FALSE
-  BRAKE
 END
