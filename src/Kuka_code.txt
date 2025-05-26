@@ -46,8 +46,8 @@ DEF ActionLoop()
       COM_ACTION = 0    ; Set Digital Output - Used by control_gripper() in Python
     CASE 10
       COM_ACTCNT = COM_ACTCNT + 1
-      io_id = COM_OUTPUT_PIN
-      IF COM_OUTPUT_STATE > 0.5 THEN
+      io_id = COM_VALUE1
+      IF COM_VALUE2 > 0.5 THEN
         $OUT[io_id] = TRUE
       ELSE
         $OUT[io_id] = FALSE
@@ -60,7 +60,7 @@ END
 
 DEF OnProbeTriggered()
   INTERRUPT OFF 5
-  COM_OUTPUT_PIN = 1
+  COM_VALUE1 = 1
   BRAKE
   RESUME
 END

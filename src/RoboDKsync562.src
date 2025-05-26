@@ -105,8 +105,8 @@ DEF ActionLoop()
           ENDIF
         ENDFOR
       ENDIF
-      IF COM_VALUE3 > 0 THEN
-        $ACC.CP = COM_VALUE3
+      IF $OUT[17] > 0 THEN
+        $ACC.CP = $OUT[17]
       ENDIF
       IF COM_VALUE4 > 0 THEN
         ;$ACC.ORI1 = COM_VALUE4

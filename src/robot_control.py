@@ -46,21 +46,21 @@ CSV_FILENAME = "DemoResults.csv"
 COLLISION_ZONES = [
     {
         "name": "camera_support",
-        "min": {"X": 1250, "Y": 950, "Z": -9999},
-        "max": {"X": 1700, "Y": 9999, "Z": 9999},
+        "min": {"X": 1250, "Y": 950, "Z": -999999},
+        "max": {"X": 1700, "Y": 999999, "Z": 999999},
     },
     {
         "name": "conveyor_zone",
-        "min": {"X": 990, "Y": -9999, "Z": -9999},
-        "max": {"X": 1870, "Y": 9999, "Z": 1010},
+        "min": {"X": 990, "Y": -999999, "Z": -999999},
+        "max": {"X": 1870, "Y": 999999, "Z": 1010},
     },
     {
         "name": "ceiling_camera",
         "min": {"X": 1290, "Y": 490, "Z": 1800},
-        "max": {"X": 1700, "Y": 950, "Z": 9999},
+        "max": {"X": 1700, "Y": 950, "Z": 999999},
     },
 ]
-COLLISION_MARGIN = 500
+COLLISION_MARGIN = 200
 
 
 def is_in_collision_zone(position: dict, client: openshowvar = None) -> None:
@@ -94,12 +94,12 @@ def is_in_collision_zone(position: dict, client: openshowvar = None) -> None:
             print(
                 f"Position {position} is inside or near collision zone: {zone['name']}"
             )
-            read_value = client.read("$IN[7]", debug=True)
+            read_value = client.read("$OUT[17]", debug=True)
             print(f"Interrupt signal read: {read_value}")
 
-            client.write("$IN[7]", "TRUE", debug=True)
+            client.write("$OUT[17]", "TRUE", debug=True)
             time.sleep(0.1)
-            read_value = client.read("$IN[7]", debug=True)
+            read_value = client.read("$OUT[17]", debug=True)
             print(f"Interrupt signal read: {read_value}")
 
             raise ValueError(f"❌ Collision risk detected in zone: {zone['name']}")
@@ -293,16 +293,16 @@ def control_gripper(client: openshowvar, state: str) -> None:
             "COM_ACTION", "10", debug=True
         )  # Trigger CASE 10: Set Digital Output
         client.write(
-            "COM_OUTPUT_PIN", "15", debug=True
+            "COM_VALUE1", "15", debug=True
         )  # Set output pin number (OUT 15)
-        client.write("COM_OUTPUT_STATE", "0", debug=True)  # Set OUT 15 to FALSE
+        client.write("COM_VALUE2", "0", debug=True)  # Set OUT 15 to FALSE
         client.write(
             "COM_ACTION", "10", debug=True
         )  # Trigger CASE 10: Set Digital Output
         client.write(
-            "COM_OUTPUT_PIN", "16", debug=True
+            "COM_VALUE1", "16", debug=True
         )  # Set output pin number (OUT 16)
-        client.write("COM_OUTPUT_STATE", "0", debug=True)  # Set OUT 16 to FALSE
+        client.write("COM_VALUE2", "0", debug=True)  # Set OUT 16 to FALSE
         print("Gripper is CLOSED.")
 
     elif state == "open":
@@ -311,16 +311,16 @@ def control_gripper(client: openshowvar, state: str) -> None:
             "COM_ACTION", "10", debug=True
         )  # Trigger CASE 10: Set Digital Output
         client.write(
-            "COM_OUTPUT_PIN", "15", debug=True
+            "COM_VALUE1", "15", debug=True
         )  # Set output pin number (OUT 15)
-        client.write("COM_OUTPUT_STATE", "1", debug=True)  # Set OUT 15 to TRUE
+        client.write("COM_VALUE2", "1", debug=True)  # Set OUT 15 to TRUE
         client.write(
             "COM_ACTION", "10", debug=True
         )  # Trigger CASE 10: Set Digital Output
         client.write(
-            "COM_OUTPUT_PIN", "16", debug=True
+            "COM_VALUE1", "16", debug=True
         )  # Set output pin number (OUT 16)
-        client.write("COM_OUTPUT_STATE", "0", debug=True)  # Set OUT 16 to FALSE
+        client.write("COM_VALUE2", "0", debug=True)  # Set OUT 16 to FALSE
         print("Gripper is OPEN.")
 
     else:
@@ -425,7 +425,7 @@ def wait_for_target_position(
         print(current_data)
 
         # Collision check - this will raise ValueError if collision detected
-        is_in_collision_zone(current_position, client)
+        #is_in_collision_zone(current_position, client)
 
         # print(f"Position dictionary: {current_position}")
 
