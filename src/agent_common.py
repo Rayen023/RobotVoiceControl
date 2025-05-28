@@ -16,16 +16,18 @@ from src.agent_tools import (
     send_movement_command,
     send_pick_and_place_command,
     send_robot_to_initial_home_position,
+    check_detected_objects
 )
 from src.simple_emotion_detector import get_emotion_and_description
 
-# chat_llm = ChatGoogleGenerativeAI(
-#     model="gemini-2.5-flash-preview-04-17",
-#     temperature=0,
-#     max_tokens=None,
-#     timeout=None,
-#     max_retries=2,
-# )
+TOOLS = [
+    get_tech_doc,
+    send_movement_command,
+    send_pick_and_place_command,
+    send_robot_to_initial_home_position,
+    get_emotion_and_description,
+    check_detected_objects
+]
 
 chat_llm = ChatOpenAI(
     openai_api_key=os.getenv("OPENROUTER_API_KEY"),
@@ -57,27 +59,17 @@ Remember previous interactions to maintain conversational context.
 If a tool call fails, report the error to the user without retrying unless the user request a retry.
 """
 
-# Shared tools list
-tools = [
-    get_tech_doc,
-    send_movement_command,
-    send_pick_and_place_command,
-    send_robot_to_initial_home_position,
-    get_emotion_and_description,
-]
-
-
 class State(TypedDict):
     messages: Annotated[list, add_messages]
 
 
 def setup_agent(chat_llm):
     graph_builder = StateGraph(State)
-    graph_builder.add_node("tools", ToolNode(tools))
+    graph_builder.add_node("tools", ToolNode(TOOLS))
     graph_builder.add_node(
         "chatbot",
         lambda state: {
-            "messages": chat_llm.bind_tools(tools).invoke(
+            "messages": chat_llm.bind_tools(TOOLS).invoke(
                 [system_prompt, *state["messages"]]
             )
         },
