@@ -266,24 +266,28 @@ def check_detected_objects() -> str:
         box_pattern, wood_pattern, orange_box_pattern = fetch_cognex_patterns()
         print(
             f"✅ Patterns: Box={box_pattern}, Wood={wood_pattern}, OrangeBox={orange_box_pattern}"
-        )
-
-        # Define pattern mappings with their names
+        )  # Define pattern mappings with their names
         patterns = {
             "box": box_pattern,
             "wood": wood_pattern,
             "orange box": orange_box_pattern,
-        }
-
-        # Check which objects are properly detected
+        }  # Check which objects are properly detected
         detected_objects = {}
         for object_name, pattern in patterns.items():
             if pattern and float(pattern["X"]) > 0 and float(pattern["Y"]) > 0:
                 detected_objects[object_name] = pattern
 
         if detected_objects:
-            print(f"Objects detected in image: {', '.join(detected_objects)}")
-            return f"Objects detected in image: {', '.join(detected_objects)}"
+            # Format output with coordinates and angle
+            object_descriptions = []
+            for obj_name, pattern in detected_objects.items():
+                object_descriptions.append(
+                    f"{obj_name} at X:{pattern['X']:.1f}, Y:{pattern['Y']:.1f}, Angle:{pattern['Angle']:.1f}°"
+                )
+
+            result = f"Objects detected in image: {', '.join(object_descriptions)}"
+            print(result)
+            return result
         else:
             return "No objects detected in image"
 
