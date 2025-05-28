@@ -255,7 +255,7 @@ def check_detected_objects() -> str:
     Triggers the camera and checks for all detected objects using computer vision.
 
     Returns:
-        str: A message listing all detected objects, or a message indicating no objects were found.
+        str: A message listing all detected objects and their coordinates, or a message indicating no objects were found.
              Example: "Objects detected in image: box, wood" or "No objects detected in image"
     """
     try:
@@ -276,12 +276,13 @@ def check_detected_objects() -> str:
         }
 
         # Check which objects are properly detected
-        detected_objects = []
+        detected_objects = {}
         for object_name, pattern in patterns.items():
             if pattern and float(pattern["X"]) > 0 and float(pattern["Y"]) > 0:
-                detected_objects.append(object_name)
+                detected_objects[object_name] = pattern
 
         if detected_objects:
+            print(f"Objects detected in image: {', '.join(detected_objects)}")
             return f"Objects detected in image: {', '.join(detected_objects)}"
         else:
             return "No objects detected in image"
