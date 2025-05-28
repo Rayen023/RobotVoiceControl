@@ -197,31 +197,37 @@ def send_pick_and_place_command(item2pick: str, location2place: str) -> str:
         if item2pick == "box":
             if box_pattern and float(box_pattern['X']) > 0 and float(box_pattern['Y']) > 0 : 
                 pattern = box_pattern
+                pick_z = 1075
             else :
                 return "Failed: Box pattern not detected by camera"
-            pick_z = 1075
         elif item2pick == "wood":
             if wood_pattern and float(wood_pattern['X']) > 0 and float(wood_pattern['Y']) > 0 : 
                 pattern = wood_pattern
+                pick_z = 1058
             else :
                 return "Failed: wood pattern not detected by camera"
-            pick_z = 1046
-            pattern = wood_pattern
+        elif item2pick == "orange box":
+            if orange_box_pattern and float(orange_box_pattern['X']) > 0 and float(orange_box_pattern['Y']) > 0 : 
+                pattern = orange_box_pattern
+                pick_z = 1070
         else:
             return f"Failed: Unknown item type '{item2pick}'"
 
-        pick_x, pick_y, pick_coords_angle = pattern["X"] , pattern["Y"], pattern["Angle"]
+        if not pattern:
+            return f"Failed: {item2pick} pattern not detected by camera"
 
-        tool_offset = {"X": -56.5, "Y": 23.7, "Z": 0, "A": 0, "B": 0, "C": 0}
+        pick_x, pick_y, pick_a = pattern["X"], pattern["Y"], pattern["Angle"]
+
+        tool_offset = {"X": 0, "Y": 0, "Z": 0, "A": 0, "B": 0, "C": 0}
 
         pick_and_place(
             client,
             pick_x,
             pick_y,
             pick_z,
-            pick_coords_angle,
+            pick_a,
             tool_offset,
-            location2place_coords,
+            place_coords
         )
 
         control_gripper(client, "open")
@@ -233,3 +239,38 @@ def send_pick_and_place_command(item2pick: str, location2place: str) -> str:
         error_msg = f"Failed during pick and place operation: {str(e)}"
         print(error_msg)
         return error_msg
+
+@tool
+def check_detected_objets() -> str : 
+    """"""
+        # Trigger camera and get vision data
+    trigger_camera(COGNEX_IP, FTP_USER, FTP_PASS)
+    time.sleep(2)        
+    
+    box_pattern, wood_pattern, orange_box_pattern = fetch_cognex_patterns()
+    print(f"✅ Patterns: Box={box_pattern}, Wood={wood_pattern}, OrangeBox={orange_box_pattern}")
+
+    # Select pattern based on item type
+    if item2pick == "box":
+        if box_pattern and float(box_pattern['X']) > 0 and float(box_pattern['Y']) > 0 : 
+            pattern = box_pattern
+            pick_z = 1075
+        else :
+            return "Failed: Box pattern not detected by camera"
+    elif item2pick == "wood":
+        if wood_pattern and float(wood_pattern['X']) > 0 and float(wood_pattern['Y']) > 0 : 
+            pattern = wood_pattern
+            pick_z = 1058
+        else :
+            return "Failed: wood pattern not detected by camera"
+    elif item2pick == "orange box":
+        if orange_box_pattern and float(orange_box_pattern['X']) > 0 and float(orange_box_pattern['Y']) > 0 : 
+            pattern = orange_box_pattern
+            pick_z = 1070
+    else:
+        return f"Failed: Unknown item type '{item2pick}'"
+
+    if not pattern:
+        return f"Failed: {item2pick} pattern not detected by camera"
+    
+    return " Objects in image are : "
