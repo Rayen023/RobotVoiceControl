@@ -173,7 +173,7 @@ def transcribe_audio(audio_file):
             contents=[
                 """
                 You are a transcription assistant specialized in voice-controlled KUKA robot. Transcribe the audio using the robotics context to resolve unclear words.
-                Use your understanding of common robot commands (e.g., move axes, pick up, place, set home position, box, bin, convayor, wood, centimeters) to correct homophones and noisy input.
+                Use your understanding of common robot commands (e.g., move axes, pick up, place, set home position, box, bin, conveyor, wood, orange box, centimeters) to correct homophones and noisy input.
                 If uncertain about a term, provide your best guess in square brackets, e.g., [likely word].
                 The audio may be in English or French. Return only the clean transcription text without extra commentary.
                 """,

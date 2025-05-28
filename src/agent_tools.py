@@ -1,5 +1,6 @@
 import os
 import time
+import json
 
 from langchain_core.tools import tool
 
@@ -164,34 +165,33 @@ def send_pick_and_place_command(item2pick: str, location2place: str) -> str:
     Executes a complete pick and place operation using computer vision and robot control.
 
     Args:
-        item2pick (str): The item to pick up. Must be either "box" or "wood".
-        location2place (str): The destination location. Must be either "bin" or "conveyor".
+        item2pick (str): The item to pick up. Must be either "box" or "wood" or "orange box".
+        location2place (str): The destination location. Must be either "bin" or "Conveyor".
 
     Returns:
         str: Success message if the operation completed successfully,
              or an error message with details about the failure point if an exception occurred.
 
     Example:
-        >>> send_pick_and_place_command("box", "blue bin")
-        'Success: Picked box and placed at blue bin'
+        >>> send_pick_and_place_command("box", "conveyor")
+        'Success: Picked box and placed at conveyor'
     """
+    
     try:
         client = connect_to_robot(ROBOT_IP, ROBOT_PORT)
 
         # Trigger camera and get vision data
         trigger_camera(COGNEX_IP, FTP_USER, FTP_PASS)
-        time.sleep(2)
-        event, box_pattern, wood_pattern = fetch_cognex_patterns()
-        print(f"✅ Event={event}, box_pattern={box_pattern}, wood_pattern={wood_pattern}")
-
-        if event is None:
-            return "Failed: Could not fetch camera patterns"
+        time.sleep(2)        
+        
+        box_pattern, wood_pattern, orange_box_pattern = fetch_cognex_patterns()
+        print(f"✅ Patterns: Box={box_pattern}, Wood={wood_pattern}, OrangeBox={orange_box_pattern}")
 
         # Determine place location
         if "bin" in location2place:
-            location2place_coords = PLACE_POSITIONS["blue bin"]
+            place_coords = PLACE_POSITIONS["bin"]
         else:
-            location2place_coords = PLACE_POSITIONS["Conveyor"]
+            place_coords = PLACE_POSITIONS["Conveyor"]
 
         # Select pattern based on item type
         if item2pick == "box":
@@ -199,7 +199,7 @@ def send_pick_and_place_command(item2pick: str, location2place: str) -> str:
                 pattern = box_pattern
             else :
                 return "Failed: Box pattern not detected by camera"
-            pick_z = 1060
+            pick_z = 1075
         elif item2pick == "wood":
             if wood_pattern and float(wood_pattern['X']) > 0 and float(wood_pattern['Y']) > 0 : 
                 pattern = wood_pattern

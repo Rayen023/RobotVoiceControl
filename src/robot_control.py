@@ -60,7 +60,7 @@ COLLISION_ZONES = [
         "max": {"X": 1700, "Y": 950, "Z": 999999},
     },
 ]
-COLLISION_MARGIN = 200
+COLLISION_MARGIN = 0
 
 
 def is_in_collision_zone(position: dict, client: openshowvar = None) -> None:
@@ -138,15 +138,15 @@ def trigger_camera(ip: str, user: str, password: str) -> None:
         raise Exception(f"Camera trigger failed: {str(e)}")
 
 
-def fetch_cognex_patterns() -> tuple[int, dict, dict]:
+def fetch_cognex_patterns() -> tuple[dict, dict, dict]:
     """
     Fetch the latest event and pattern data from the Cognex camera via FTP and CSV file.
 
     Returns:
         tuple: Contains:
-            - event (int): Event number from CSV
-            - pattern1 (dict): First pattern with X, Y, Angle or None if not detected
-            - pattern2 (dict): Second pattern with X, Y, Angle or None if not detected
+            - pattern wood (dict): First pattern with X, Y, Angle or None if not detected
+            - pattern box (dict): Second pattern with X, Y, Angle or None if not detected
+            - pattern orange_box (dict): Second pattern with X, Y, Angle or None if not detected
 
     Raises:
         ValueError: If CSV is empty or has invalid format
@@ -165,34 +165,26 @@ def fetch_cognex_patterns() -> tuple[int, dict, dict]:
             print(error_msg)
             raise ValueError(error_msg)
         last_row = rows[-1]
-        if len(last_row) < 7:
-            error_msg = "⚠️ CSV format error."
-            print(error_msg)
-            raise ValueError(error_msg)
-        event = int(last_row[0])
-        pattern1 = (
-            {
-                "X": float(last_row[1]),
-                "Y": float(last_row[2]),
-                "Angle": float(last_row[3]),
-            }
-            if last_row[1] and last_row[2]
-            else None
-        )
-        pattern2 = (
-            {
-                "X": float(last_row[4]),
-                "Y": float(last_row[5]),
-                "Angle": float(last_row[6]),
-            }
-            if last_row[4] and last_row[5]
-            else None
-        )
-        print(f"✅ Event={event}, Pattern1={pattern1}, Pattern2={pattern2}")
-        return event, pattern1, pattern2
-    except ValueError as e:
-        # Re-raise ValueError for specific CSV issues
-        raise
+        if len(last_row) < 10:
+            raise ValueError("⚠️ CSV format error.")
+
+        def parse_pattern(event_idx, x_idx, y_idx, a_idx):
+            event = int(last_row[event_idx])
+            if event != 0 and last_row[x_idx] and last_row[y_idx]:
+                return {
+                    "X": float(last_row[x_idx]),
+                    "Y": float(last_row[y_idx]),
+                    "Angle": float(last_row[a_idx])
+                }
+            return None
+
+        box_pattern = parse_pattern(0, 1, 2, 3)
+        wood_pattern = parse_pattern(4, 5, 6, 7)
+        orange_box_pattern = parse_pattern(8, 9, 10, 11)
+
+        print(f"✅ Patterns: Box={box_pattern}, Wood={wood_pattern}, OrangeBox={orange_box_pattern}")
+        return box_pattern, wood_pattern, orange_box_pattern
+
     except Exception as e:
         error_msg = f"❌ FTP Error: {e}"
         print(error_msg)
@@ -450,8 +442,8 @@ def wait_for_target_position(
 
 # Define preset locations
 PLACE_POSITIONS = {
-    "blue bin": {"X": 500, "Y": 300, "Z": 1200, "A": 180, "B": 0, "C": 180},
-    "Conveyor": {"X": 1500, "Y": -490, "Z": 1300, "A": 90, "B": 0, "C": 180},
+    "bin": {"X": 891, "Y": -1402.5, "Z": 1390, "A": 122.76, "B": 0, "C": 179.6},
+    "Conveyor": {"X": 1500, "Y": -490, "Z": 1100, "A": 90, "B": 0, "C": 180},
 }
 
 
@@ -564,7 +556,32 @@ def pick_and_place(
     )
     time.sleep(0.5)
 
+    adjusted_z = location2place_coords["Z"] + 200
+
     # Now move to place position
+    cartesian_movement(
+        client,
+        location2place_coords["X"],
+        location2place_coords["Y"],
+        adjusted_z,
+        location2place_coords["A"],
+        location2place_coords["B"],
+        location2place_coords["C"],
+        Move="PTP",
+    )
+    wait_for_target_position(
+        client,
+        target_position={
+            "X": location2place_coords["X"],
+            "Y": location2place_coords["Y"],
+            "Z": adjusted_z,
+        },
+        timeout=30,
+        tolerance=0.5,
+    )
+    time.sleep(0.5)
+
+    # Lower to final place position
     cartesian_movement(
         client,
         location2place_coords["X"],
@@ -581,29 +598,6 @@ def pick_and_place(
             "X": location2place_coords["X"],
             "Y": location2place_coords["Y"],
             "Z": location2place_coords["Z"],
-        },
-        timeout=30,
-        tolerance=0.5,
-    )
-    time.sleep(0.5)
-
-    # Lower to final place position
-    cartesian_movement(
-        client,
-        location2place_coords["X"],
-        location2place_coords["Y"],
-        1100,
-        location2place_coords["A"],
-        location2place_coords["B"],
-        location2place_coords["C"],
-        Move="PTP",
-    )
-    wait_for_target_position(
-        client,
-        target_position={
-            "X": location2place_coords["X"],
-            "Y": location2place_coords["Y"],
-            "Z": 1100,
         },
         timeout=30,
         tolerance=0.5,
