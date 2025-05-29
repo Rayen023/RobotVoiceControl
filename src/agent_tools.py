@@ -53,11 +53,11 @@ def send_robot_to_initial_home_position() -> str:
 
         # client = connect_to_robot(ROBOT_IP, ROBOT_PORT)
         cartesian_movement(
-            client, 1432, 245, 1300, 178, 0, 180, Move="PTP"
+            client, 1237, -100, 1483, 90, 88, 90, Move="PTP"
         )  # Adjust Z value
         wait_for_target_position(
             client,
-            target_position={"X": 1432, "Y": 245, "Z": 1300},
+            target_position={"X": 1237, "Y": -100, "Z": 1483},
             timeout=30,
             tolerance=0.5,
         )
@@ -68,7 +68,34 @@ def send_robot_to_initial_home_position() -> str:
         print(error_msg)
         return error_msg
 
+@tool
+def get_current_position() -> str:
+    """
+    Returns the current poistion of the robot
 
+    Returns:
+        str: Either an Error message if an exception occurred or the current coordinates of the robot.
+    """
+    try:
+        client = connect_to_robot(ROBOT_IP, ROBOT_PORT)
+        # client = connect_to_robot(ROBOT_IP, ROBOT_PORT)
+        current_pos = client.read("$POS_ACT", debug=True).decode("utf-8")
+        # print(f"Current position: {current_pos}")
+        current_data = current_pos.strip("{}").replace("E6POS:", "").split(",")
+        # print(f"Current data: {current_data}")
+        pos_dict = {
+            item.split()[0]: float(item.split()[1])
+            for item in current_data
+            if len(item.split()) == 2
+        }
+
+        return f"The current coordinates of the robot : X : {pos_dict["X"]}, Y : {pos_dict["Y"]}, Z : {pos_dict["Z"]}, A : {pos_dict["A"]}, B : {pos_dict["B"]}, C : {pos_dict["C"]}"
+    except Exception as e:
+        error_msg = f"Failed to get coordinates : {str(e)}"
+        print(error_msg)
+        return error_msg
+
+#TODO save image
 @tool
 def send_movement_command(
     X: int = 0, Y: int = 0, Z: int = 0, A: int = 0, B: int = 0, C: int = 0
@@ -99,6 +126,17 @@ def send_movement_command(
     Example:
         >>> send_movement_command(X=100, Z=50)
         'Success: Robot moved to position X:1532.0, Y:245.0, Z:1350.0'
+
+    You will receive a voice command describing a shape to draw (square, rectangle, triangle), along with optional dimensions and directions.
+
+    Examples:
+        - A square is drawn on two axes (e.g., X and Y), moving equal lengths:
+        1. +X, then +Y, then -X, then -Y. You should send the movement one after the other.
+        - A rectangle has unequal lengths on two axes:
+        1. +X (width), then +Y (height), then -X, then -Y.
+        - A triangle is an isosceles triangle on two axes (e.g., X/Y or Y/Z):
+        1. Diagonal up right (+X, +Y), then diagonal up left (-X, +Y), then vertical down (Y-)
+        - If no plane is specified, assume X and Y
     """
     try:
         client = connect_to_robot(ROBOT_IP, ROBOT_PORT)

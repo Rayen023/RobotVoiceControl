@@ -112,11 +112,11 @@ def process_image(image_np: np.ndarray) -> Dict[str, Any]:
 @tool
 def get_emotion_and_description() -> str:
     """
-    Captures an image from the camera, processes it, and returns a string
-    containing either an error message or the image description plus emotion information.
+    Analyze the environment by capturing an image from the camera, processes it, and returns a string
+    containing either an error message or the image description plus emotion information of the people present in the image.
 
     Returns:
-        A string with either an error message or image description with emotion data
+        A string with either an error message or image description with emotion data.
 
     """  # max_cameras = 10
     # available = [
@@ -156,6 +156,7 @@ def get_emotion_and_description() -> str:
     try:
         # Process the captured frame
         result = process_image(frame)
+        cv2.imwrite("captured_image.png", frame)
 
         # Check for errors
         if "face_analysis_error" in result:

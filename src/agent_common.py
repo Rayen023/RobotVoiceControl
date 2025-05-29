@@ -16,7 +16,8 @@ from src.agent_tools import (
     send_movement_command,
     send_pick_and_place_command,
     send_robot_to_initial_home_position,
-    check_detected_objects
+    check_detected_objects,
+    get_current_position
 )
 from src.simple_emotion_detector import get_emotion_and_description
 
@@ -26,7 +27,8 @@ TOOLS = [
     send_pick_and_place_command,
     send_robot_to_initial_home_position,
     get_emotion_and_description,
-    check_detected_objects
+    check_detected_objects,
+    get_current_position
 ]
 
 chat_llm = ChatOpenAI(
