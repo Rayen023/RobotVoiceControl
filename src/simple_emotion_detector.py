@@ -20,9 +20,9 @@ DeepFace = None
 
 
 def get_deepface():
-    speak_text("Chargement des modules de vision, cela prend quelques secondes.")
     global DeepFace
     if DeepFace is None:
+        speak_text("Chargement des modules de vision, cela prend quelques secondes.")
         from deepface import DeepFace as DF
 
         DeepFace = DF
