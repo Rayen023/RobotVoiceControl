@@ -29,6 +29,24 @@ with open(file_path, "r", encoding="utf-8") as file:
 client = connect_to_robot(ROBOT_IP, ROBOT_PORT)
 
 
+def parse_position_data(pos_string):
+    """Helper function to parse robot position data into a dictionary"""
+    pos_data = pos_string.strip("{}").replace("E6POS:", "").split(",")
+    return {
+        item.split()[0]: float(item.split()[1])
+        for item in pos_data
+        if len(item.split()) == 2
+    }
+
+
+def positions_equal(pos1, pos2, tolerance=0.1):
+    """Check if two positions are equal within tolerance"""
+    for axis in ["X", "Y", "Z"]:
+        if abs(pos1.get(axis, 0) - pos2.get(axis, 0)) > tolerance:
+            return False
+    return True
+
+
 @tool
 def get_tech_doc() -> str:
     """
@@ -51,7 +69,10 @@ def send_robot_to_initial_home_position() -> str:
     try:
         client = connect_to_robot(ROBOT_IP, ROBOT_PORT)
 
-        # client = connect_to_robot(ROBOT_IP, ROBOT_PORT)
+        # Get initial position
+        initial_pos_str = client.read("$POS_ACT", debug=True).decode("utf-8")
+        initial_pos = parse_position_data(initial_pos_str)
+
         cartesian_movement(
             client, 1432, 245, 1300, 178, 0, 180, Move="PTP"
         )  # Adjust Z value
@@ -62,6 +83,14 @@ def send_robot_to_initial_home_position() -> str:
             tolerance=0.5,
         )
         time.sleep(0.5)
+
+        # Get final position and check if robot moved
+        final_pos_str = client.read("$POS_ACT", debug=True).decode("utf-8")
+        final_pos = parse_position_data(final_pos_str)
+
+        if positions_equal(initial_pos, final_pos):
+            raise Exception("Was not able to move the robot")
+
         return "Success: Robot moved to initial home position"
     except Exception as e:
         error_msg = f"Failed to move robot to home position: {str(e)}"
@@ -136,25 +165,18 @@ def send_movement_command(
         - A rectangle has unequal lengths on two axes:
         1. +X (width), then +Y (height), then -X, then -Y.
         - A triangle is an isosceles triangle on two axes (e.g., X/Y or Y/Z):
-        1. Diagonal up right (+X, +Y), then diagonal up left (-X, +Y), then vertical down (Y-)
-        - If no plane is specified, assume X and Y
+        1. Diagonal up right (+X, +Y), then diagonal up left (-X, +Y), then vertical down (Y-)        - If no plane is specified, assume X and Y
     """
     try:
         client = connect_to_robot(ROBOT_IP, ROBOT_PORT)
 
-        # try:
         print(X, Y, Z)
-        # client = connect_to_robot(ROBOT_IP, ROBOT_PORT)
-        current_pos = client.read("$POS_ACT", debug=True).decode("utf-8")
-        # print(f"Current position: {current_pos}")
-        current_data = current_pos.strip("{}").replace("E6POS:", "").split(",")
-        # print(f"Current data: {current_data}")
-        pos_dict = {
-            item.split()[0]: float(item.split()[1])
-            for item in current_data
-            if len(item.split()) == 2
-        }
-        # print(f"Position dictionary: {pos_dict}")
+        # Get initial position
+        initial_pos_str = client.read("$POS_ACT", debug=True).decode("utf-8")
+        initial_pos = parse_position_data(initial_pos_str)
+
+        pos_dict = initial_pos.copy()
+
         movement = {
             "X": X,
             "Y": Y,
@@ -163,7 +185,6 @@ def send_movement_command(
             "B": B,
             "C": C,
         }
-        # print(f"Movement dictionary: {movement}")
 
         for axis, val in movement.items():
             pos_dict[axis] += val
@@ -191,6 +212,13 @@ def send_movement_command(
         )
         time.sleep(0.5)
 
+        # Get final position and check if robot moved
+        final_pos_str = client.read("$POS_ACT", debug=True).decode("utf-8")
+        final_pos = parse_position_data(final_pos_str)
+
+        if positions_equal(initial_pos, final_pos):
+            raise Exception("Was not able to move the robot")
+
         return f"Success: Robot moved to position X:{pos_dict['X']}, Y:{pos_dict['Y']}, Z:{pos_dict['Z']}"
     except Exception as e:
         error_msg = f"Failed to move robot: {str(e)}"
@@ -212,12 +240,14 @@ def send_pick_and_place_command(item2pick: str, location2place: str) -> str:
              or an error message with details about the failure point if an exception occurred.
 
     Example:
-        >>> send_pick_and_place_command("box", "conveyor")
-        'Success: Picked box and placed at conveyor'
+        >>> send_pick_and_place_command("box", "conveyor")        'Success: Picked box and placed at conveyor'
     """
-
     try:
         client = connect_to_robot(ROBOT_IP, ROBOT_PORT)
+
+        # Get initial position
+        initial_pos_str = client.read("$POS_ACT", debug=True).decode("utf-8")
+        initial_pos = parse_position_data(initial_pos_str)
 
         # Trigger camera and get vision data
         trigger_camera(COGNEX_IP, FTP_USER, FTP_PASS)
@@ -278,7 +308,13 @@ def send_pick_and_place_command(item2pick: str, location2place: str) -> str:
         )
 
         control_gripper(client, "open")
-        # send_robot_to_initial_home_position()  # initialized as tool so cannot pass as function
+
+        # Get final position and check if robot moved
+        final_pos_str = client.read("$POS_ACT", debug=True).decode("utf-8")
+        final_pos = parse_position_data(final_pos_str)
+
+        if positions_equal(initial_pos, final_pos):
+            raise Exception("Was not able to move the robot")
 
         return f"Success: Picked {item2pick} and placed at {location2place}"
 
