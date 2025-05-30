@@ -120,7 +120,7 @@ async def generate_image_description(image_np: np.ndarray) -> str:
             "content": [
                 {
                     "type": "text",
-                    "text": "Generate in a single sentence a description of the image in french.",
+                    "text": "Generate in a single sentence a description of the image in french. If a human is included in the image it is the robot's operator so call him as such",
                 },
                 {
                     "type": "image",
@@ -189,7 +189,7 @@ def format_analysis_output(result: dict) -> str:
 def get_emotion_and_description() -> str:
     """
     Analyze the environment by capturing an image from the camera, processes it, and returns a string
-    containing either an error message or the image description plus emotion information of the people present in the image.
+    containing either an error message or the image description plus emotion information of the robot's operator present in the image.
 
     Returns:
         A string with either an error message or image description with emotion data.
