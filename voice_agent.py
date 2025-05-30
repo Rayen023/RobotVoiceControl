@@ -33,8 +33,8 @@ PROCESSED_AUDIO_FILENAME = "processed_recording.wav"
 MAX_RECORD_SECONDS = 20  # 30
 SILENCE_THRESHOLD = 5.0  # 4.0
 SPEECH_TIMEOUT = 5  # 10
-# === GLOBAL VAD/SPEECH PARAMETERS ===
-VAD_THRESHOLD = 0.65  # Increased for stricter speech detection
+
+VAD_THRESHOLD = 0.65  # 0.6
 VAD_MIN_SILENCE_DURATION_MS = 4000  # 5000
 VAD_SPEECH_PAD_MS = 300  # 500
 
@@ -44,8 +44,7 @@ SPEECH_TIMESTAMP_SPEECH_PAD_MS = 200  # 500
 
 SPEECH_MIN_DURATION_SECONDS = 1.0  # 1.0
 
-AUDIO_INT16_NORMALIZATION = 32768.0  # Used to normalize int16 audio to [-1.0, 1.0]
-# ====================================
+AUDIO_INT16_NORMALIZATION = 32768.0
 
 transcription_client = genai.Client()
 
