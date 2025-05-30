@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 
+from src.tts import speak_text
+
 logger = logging.getLogger(__name__)
 load_dotenv()
 
@@ -18,6 +20,7 @@ DeepFace = None
 
 
 def get_deepface():
+    speak_text("Chargement des modules de vision, cela prend quelques secondes.")
     global DeepFace
     if DeepFace is None:
         from deepface import DeepFace as DF
