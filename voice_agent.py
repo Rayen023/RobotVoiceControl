@@ -30,20 +30,20 @@ CHUNK = 512
 WAVE_OUTPUT_FILENAME = "temp_recording.wav"
 PROCESSED_AUDIO_FILENAME = "processed_recording.wav"
 
-MAX_RECORD_SECONDS = 20  # Reduced to prevent overly long recordings
-SILENCE_THRESHOLD = 1.5  # Much faster stop after speech ends
-SPEECH_TIMEOUT = 5  # Less waiting if no speech is detected
+MAX_RECORD_SECONDS = 20  # 30
+SILENCE_THRESHOLD = 5.0  # 4.0
+SPEECH_TIMEOUT = 5  # 10
 # === GLOBAL VAD/SPEECH PARAMETERS ===
-VAD_THRESHOLD = 0.7  # Increased for stricter speech detection
-VAD_MIN_SILENCE_DURATION_MS = 1200  # Reduced for faster stop after speech
-VAD_SPEECH_PAD_MS = 200  # Less padding for more reactivity
+VAD_THRESHOLD = 0.65  # Increased for stricter speech detection
+VAD_MIN_SILENCE_DURATION_MS = 4000  # 5000
+VAD_SPEECH_PAD_MS = 300  # 500
 
-SPEECH_TIMESTAMP_THRESHOLD = 0.55  # Increased for stricter segment detection
-SPEECH_TIMESTAMP_MIN_SILENCE_DURATION_MS = 500  # Reduced for quicker segmentation
-SPEECH_TIMESTAMP_SPEECH_PAD_MS = 200  # Less padding for more reactivity
+SPEECH_TIMESTAMP_THRESHOLD = 0.55  # 0.45
+SPEECH_TIMESTAMP_MIN_SILENCE_DURATION_MS = 500  # 1500
+SPEECH_TIMESTAMP_SPEECH_PAD_MS = 200  # 500
 
 SPEECH_MIN_DURATION_SECONDS = (
-    1.2  # Slightly increased to filter out short/noisy segments
+    1.0  # 1.0
 )
 
 AUDIO_INT16_NORMALIZATION = 32768.0  # Used to normalize int16 audio to [-1.0, 1.0]
@@ -185,6 +185,7 @@ def transcribe_audio(audio_file):
         with open(processed_file, "rb") as f:
             audio_bytes = f.read()
 
+        print("here")
         response = transcription_client.models.generate_content(
             model="gemini-2.5-flash-preview-05-20",  # google/gemini-2.5-flash-preview-05-20
             contents=[
