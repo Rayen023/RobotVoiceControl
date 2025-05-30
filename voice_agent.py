@@ -33,6 +33,20 @@ SPEECH_TIMEOUT = 10
 WAVE_OUTPUT_FILENAME = "temp_recording.wav"
 PROCESSED_AUDIO_FILENAME = "processed_recording.wav"
 
+# === GLOBAL VAD/SPEECH PARAMETERS ===
+VAD_THRESHOLD = 0.6
+VAD_MIN_SILENCE_DURATION_MS = 5000
+VAD_SPEECH_PAD_MS = 500
+
+SPEECH_TIMESTAMP_THRESHOLD = 0.45
+SPEECH_TIMESTAMP_MIN_SILENCE_DURATION_MS = 1500
+SPEECH_TIMESTAMP_SPEECH_PAD_MS = 500
+
+SPEECH_MIN_DURATION_SECONDS = 1.0  # Minimum duration of detected speech to accept
+
+AUDIO_INT16_NORMALIZATION = 32768.0  # Used to normalize int16 audio to [-1.0, 1.0]
+# ====================================
+
 transcription_client = genai.Client()
 
 
@@ -50,10 +64,10 @@ def record_audio():
     print("Listening... (Speak now, will stop recording when you finish)")
     vad_iterator = VADIterator(
         model=vad_model,
-        threshold=0.6,
+        threshold=VAD_THRESHOLD,
         sampling_rate=RATE,
-        min_silence_duration_ms=5000,
-        speech_pad_ms=500,
+        min_silence_duration_ms=VAD_MIN_SILENCE_DURATION_MS,
+        speech_pad_ms=VAD_SPEECH_PAD_MS,
     )
 
     frames = []
@@ -66,7 +80,8 @@ def record_audio():
             data = stream.read(CHUNK, exception_on_overflow=False)
             frames.append(data)
             audio_chunk = (
-                np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
+                np.frombuffer(data, dtype=np.int16).astype(np.float32)
+                / AUDIO_INT16_NORMALIZATION
             )
 
             vad_result = vad_iterator(audio_chunk)
@@ -126,9 +141,9 @@ def process_audio_with_vad(audio_file):
             wav,
             vad_model,
             sampling_rate=RATE,
-            threshold=0.45,
-            min_silence_duration_ms=1500,
-            speech_pad_ms=500,
+            threshold=SPEECH_TIMESTAMP_THRESHOLD,
+            min_silence_duration_ms=SPEECH_TIMESTAMP_MIN_SILENCE_DURATION_MS,
+            speech_pad_ms=SPEECH_TIMESTAMP_SPEECH_PAD_MS,
         )
 
         if not speech_timestamps:
@@ -139,7 +154,7 @@ def process_audio_with_vad(audio_file):
             sum((chunk["end"] - chunk["start"]) for chunk in speech_timestamps) / RATE
         )
 
-        if total_speech_duration < 1.0:
+        if total_speech_duration < SPEECH_MIN_DURATION_SECONDS:
             print(
                 f"Speech detected is too short ({total_speech_duration:.2f} seconds), ignoring"
             )
