@@ -1,34 +1,39 @@
 import csv
 import io
 import math
+import os
 import socket
 import telnetlib
 import time
 from ftplib import FTP_TLS
 
-from py_openshowvar import openshowvar
+from dotenv import load_dotenv
 
+load_dotenv()
+if os.environ.get("USE_PY_OPENSHOWVAR") == "0":
 
-# Mock openshowvar class for testing without actual robot connection
-class openshowvar:
-    def __init__(self, ip, port):
-        self.ip = ip
-        self.port = port
-        self.can_connect = True
-        print(f"Mock robot connection to {ip}:{port} initialized")
+    class openshowvar:
+        def __init__(self, ip, port):
+            self.ip = ip
+            self.port = port
+            self.can_connect = True
+            print(f"Mock robot connection to {ip}:{port} initialized")
 
-    def read(self, variable, debug=False):
-        if debug:
-            print(f"Mock reading {variable}")
-        # Return a mock position for $POS_ACT
-        if variable == "$POS_ACT":
-            return b"E6POS: X 500.0, Y 300.0, Z 1200.0, A 180.0, B 0.0, C 180.0"
-        return b"0"
+        def read(self, variable, debug=False):
+            if debug:
+                print(f"Mock reading {variable}")
+            # Return a mock position for $POS_ACT
+            if variable == "$POS_ACT":
+                return b"E6POS: X 500.0, Y 300.0, Z 1200.0, A 180.0, B 0.0, C 180.0"
+            return b"0"
 
-    def write(self, variable, value, debug=False):
-        if debug:
-            print(f"Mock writing {value} to {variable}")
-        return True
+        def write(self, variable, value, debug=False):
+            if debug:
+                print(f"Mock writing {value} to {variable}")
+            return True
+
+else:
+    from py_openshowvar import openshowvar
 
 
 # === IP Configurations ===

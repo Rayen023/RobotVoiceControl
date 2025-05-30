@@ -181,6 +181,10 @@ def transcribe_audio(audio_file):
 
         with open(processed_file, "rb") as f:
             audio_bytes = f.read()
+        import time
+
+        start_transcription = time.time()
+        print("Transcribing audio...")
 
         response = transcription_client.models.generate_content(
             model="gemini-2.5-flash-preview-05-20",  # google/gemini-2.5-flash-preview-05-20
@@ -196,6 +200,10 @@ def transcribe_audio(audio_file):
                     mime_type="audio/wav",
                 ),
             ],
+        )
+        end_transcription = time.time()
+        print(
+            f"Transcription completed in {end_transcription - start_transcription:.2f} seconds"
         )
 
         return response.text
