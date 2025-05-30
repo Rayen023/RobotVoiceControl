@@ -53,11 +53,11 @@ def send_robot_to_initial_home_position() -> str:
 
         # client = connect_to_robot(ROBOT_IP, ROBOT_PORT)
         cartesian_movement(
-            client, 1237, -100, 1483, 90, 88, 90, Move="PTP"
+            client, 1432, 245, 1300, 178, 0, 180, Move="PTP"
         )  # Adjust Z value
         wait_for_target_position(
             client,
-            target_position={"X": 1237, "Y": -100, "Z": 1483},
+            target_position={"X": 1432, "Y": 245, "Z": 1300},
             timeout=30,
             tolerance=0.5,
         )
@@ -251,7 +251,7 @@ def send_pick_and_place_command(item2pick: str, location2place: str) -> str:
                 and float(wood_pattern["Y"]) > 0
             ):
                 pattern = wood_pattern
-                pick_z = 1058
+                pick_z = 1054
             else:
                 return "Failed: wood pattern not detected by camera"
         elif item2pick == "orange box":
@@ -261,7 +261,7 @@ def send_pick_and_place_command(item2pick: str, location2place: str) -> str:
                 and float(orange_box_pattern["Y"]) > 0
             ):
                 pattern = orange_box_pattern
-                pick_z = 1070
+                pick_z = 1065
         else:
             return f"Failed: Unknown item type '{item2pick}'"
 

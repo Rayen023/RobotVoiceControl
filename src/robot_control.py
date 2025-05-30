@@ -442,7 +442,7 @@ def wait_for_target_position(
 
 # Define preset locations
 PLACE_POSITIONS = {
-    "bin": {"X": 891, "Y": -1402.5, "Z": 1390, "A": 122.76, "B": 0, "C": 179.6},
+    "bin": {"X": 110.5, "Y": -1543, "Z": 1380, "A": 88, "B": 0, "C": 179.6},
     "Conveyor": {"X": 1500, "Y": -490, "Z": 1100, "A": 90, "B": 0, "C": 180},
 }
 
@@ -530,6 +530,7 @@ def pick_and_place(
 
     # Close gripper
     control_gripper(client, "close")
+    time.sleep(0.5)
 
     # Move up again
     cartesian_movement(
@@ -602,4 +603,7 @@ def pick_and_place(
         timeout=30,
         tolerance=0.5,
     )
+    time.sleep(0.5)
+    # Close gripper
+    control_gripper(client, "close")
     time.sleep(0.5)
