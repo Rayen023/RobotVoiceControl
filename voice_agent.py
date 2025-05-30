@@ -1,4 +1,3 @@
-import base64
 import os
 import time
 import uuid
@@ -7,7 +6,7 @@ import wave
 import numpy as np
 import pyaudio
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
+from google import genai
 from silero_vad import (
     VADIterator,
     collect_chunks,
@@ -48,16 +47,8 @@ SPEECH_MIN_DURATION_SECONDS = 1.0  # 1.0
 AUDIO_INT16_NORMALIZATION = 32768.0  # Used to normalize int16 audio to [-1.0, 1.0]
 # ====================================
 
-llm = ChatOpenAI(
-    openai_api_key=os.environ["OPENROUTER_API_KEY"],
-    openai_api_base=os.environ["OPENROUTER_BASE_URL"],
-    model_name="google/gemini-2.5-flash-preview-05-20",
-    temperature=0,
-    max_tokens=8096,
-    timeout=None,
-    max_retries=2,
-    streaming=True,
-)
+transcription_client = genai.Client()
+
 
 USE_ONNX = False
 vad_model = load_silero_vad(onnx=USE_ONNX)
@@ -192,28 +183,23 @@ def transcribe_audio(audio_file):
         with open(processed_file, "rb") as f:
             audio_bytes = f.read()
 
-        # Convert audio bytes to base64
-        audio_data = base64.b64encode(audio_bytes).decode("utf-8")
-
-        message = {
-            "role": "user",
-            "content": [
-                {
-                    "type": "text",
-                    "text": "You are a transcription assistant specialized in voice-controlled KUKA robot. Transcribe the audio using the robotics context to resolve unclear words. Use your understanding of common robot commands (e.g., move axes, pick up, place, set home position, box, bin, conveyor, wood, orange box, centimeters) to correct homophones and noisy input. If uncertain about a term, provide your best guess in square brackets, e.g., [likely word]. The audio may be in English or French. Return only the clean transcription text without extra commentary.",
-                },
-                {
-                    "type": "audio",
-                    "source_type": "base64",
-                    "data": audio_data,
-                    "mime_type": "audio/wav",
-                },
+        response = transcription_client.models.generate_content(
+            model="gemini-2.5-flash-preview-05-20",  # google/gemini-2.5-flash-preview-05-20
+            contents=[
+                """
+                You are a transcription assistant specialized in voice-controlled KUKA robot. Transcribe the audio using the robotics context to resolve unclear words.
+                Use your understanding of common robot commands (e.g., move axes, pick up, place, set home position, box, bin, conveyor, wood, orange box, centimeters) to correct homophones and noisy input.
+                If uncertain about a term, provide your best guess in square brackets, e.g., [likely word].
+                The audio may be in English or French. Return only the clean transcription text without extra commentary.
+                """,
+                genai.types.Part.from_bytes(
+                    data=audio_bytes,
+                    mime_type="audio/wav",
+                ),
             ],
-        }
+        )
 
-        response = llm.invoke([message])
-        return response.content
-
+        return response.text
     except Exception as e:
         print(f"Error transcribing audio: {e}")
         return None
