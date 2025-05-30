@@ -433,9 +433,7 @@ def wait_for_target_position(
 
         # Check for timeout
         if time.time() - start_time > timeout:
-            raise TimeoutError(
-                f"Timeout waiting for target position. Current: {current_position}, Target: {adjusted_target_position}"
-            )
+            raise TimeoutError(f"Unable to move the robot to target position.")
 
         time.sleep(0.1)
 
