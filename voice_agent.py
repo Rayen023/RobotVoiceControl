@@ -19,6 +19,7 @@ from silero_vad import (
 
 from src.agent_common import graph
 from src.tts import speak_text
+#from src.tts_gemini import speak_text
 
 thread_id = str(uuid.uuid4())  # Generate a unique thread ID for each session
 
