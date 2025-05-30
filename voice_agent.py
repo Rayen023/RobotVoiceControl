@@ -30,19 +30,15 @@ CHUNK = 512
 WAVE_OUTPUT_FILENAME = "temp_recording.wav"
 PROCESSED_AUDIO_FILENAME = "processed_recording.wav"
 
-MAX_RECORD_SECONDS = 20  # 30
-SILENCE_THRESHOLD = 5.0  # 4.0
-SPEECH_TIMEOUT = 5  # 10
-
 VAD_THRESHOLD = 0.65  # 0.6
-VAD_MIN_SILENCE_DURATION_MS = 4000  # 5000
-VAD_SPEECH_PAD_MS = 300  # 500
+VAD_MIN_SILENCE_DURATION_MS = 3000  # 5000
+VAD_SPEECH_PAD_MS = 500  # 500
 
 SPEECH_TIMESTAMP_THRESHOLD = 0.55  # 0.45
 SPEECH_TIMESTAMP_MIN_SILENCE_DURATION_MS = 500  # 1500
 SPEECH_TIMESTAMP_SPEECH_PAD_MS = 200  # 500
 
-SPEECH_MIN_DURATION_SECONDS = 1.0  # 1.0
+SPEECH_MIN_DURATION_SECONDS = 0.8  # 1.0
 
 AUDIO_INT16_NORMALIZATION = 32768.0
 
@@ -54,13 +50,13 @@ vad_model = load_silero_vad(onnx=USE_ONNX)
 
 
 def record_audio():
-    """Record audio with dynamic VAD-based stopping when the user stops speaking"""
+    """Record audio with VAD-based detection of speech start and end"""
     audio = pyaudio.PyAudio()
     stream = audio.open(
         format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK
     )
 
-    print("Listening... (Speak now, will stop recording when you finish)")
+    print("Listening... Speak now. Recording will stop on VAD 'end'.")
     vad_iterator = VADIterator(
         model=vad_model,
         threshold=VAD_THRESHOLD,
@@ -71,8 +67,6 @@ def record_audio():
 
     frames = []
     is_speech_started = False
-    last_speech_time = time.time()
-    start_time = time.time()
 
     try:
         while True:
@@ -82,34 +76,15 @@ def record_audio():
                 np.frombuffer(data, dtype=np.int16).astype(np.float32)
                 / AUDIO_INT16_NORMALIZATION
             )
-
             vad_result = vad_iterator(audio_chunk)
 
-            current_time = time.time()
-            elapsed_time = current_time - start_time
-
-            if vad_result is not None and "start" in vad_result:
+            # start detection
+            if vad_result and "start" in vad_result:
                 is_speech_started = True
-                last_speech_time = current_time
-            if vad_result is not None and "end" in vad_result:
-                if is_speech_started:
 
-                    print("Speech pause detected, continuing to listen for more...")
-
-                    last_speech_time = current_time
-
-            if elapsed_time > MAX_RECORD_SECONDS:
-                print("Maximum recording time reached")
-                break
-
-            if is_speech_started and (
-                current_time - last_speech_time > SILENCE_THRESHOLD
-            ):
-                print("Extended silence detected, stopping recording")
-                break
-
-            if not is_speech_started and (elapsed_time > SPEECH_TIMEOUT):
-                print("No speech detected, stopping recording")
+            # immediate stop when VAD signals end-of-speech
+            if vad_result and "end" in vad_result and is_speech_started:
+                print("VAD end detected, stopping recording.")
                 break
 
     finally:
@@ -181,7 +156,6 @@ def transcribe_audio(audio_file):
 
         with open(processed_file, "rb") as f:
             audio_bytes = f.read()
-        import time
 
         start_transcription = time.time()
         print("Transcribing audio...")
