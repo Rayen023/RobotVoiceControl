@@ -1,112 +1,185 @@
-from typing import Any, Dict
+import asyncio
+import base64
+import logging
+import os
+from typing import List, Optional
 
+import cv2
 import numpy as np
 from dotenv import load_dotenv
-from google import genai
-from google.genai.types import Part
 from langchain_core.tools import tool
+from langchain_openai import ChatOpenAI
 
-# Lazy imports for heavy dependencies
-_cv2 = None
-_deepface = None
-
-
-def _get_cv2():
-    """Lazy import for cv2"""
-    global _cv2
-    if _cv2 is None:
-        import cv2
-
-        _cv2 = cv2
-    return _cv2
-
-
-def _get_deepface():
-    """Lazy import for DeepFace"""
-    global _deepface
-    if _deepface is None:
-        from deepface import DeepFace
-
-        _deepface = DeepFace
-    return _deepface
-
-
+logger = logging.getLogger(__name__)
 load_dotenv()
 
+# Lazy import for DeepFace
+DeepFace = None
 
-def process_image(image_np: np.ndarray) -> Dict[str, Any]:
-    """
-    Process a single image frame with DeepFace and Gemini.
 
-    Args:
-        image_np: Numpy array containing the image
+def get_deepface():
+    global DeepFace
+    if DeepFace is None:
+        from deepface import DeepFace as DF
 
-    Returns:
-        Dictionary containing emotion analysis and image description
-    """
-    result = {
-        "face_analysis": [],
-        "image_description_fr": None,
-    }  # Get image description using Gemini
+        DeepFace = DF
+    return DeepFace
+
+
+class FaceAnalysisResult:
+    def __init__(self, face_id, bounding_box, dominant_emotion, emotion_confidence):
+        self.face_id = face_id
+        self.bounding_box = bounding_box
+        self.dominant_emotion = dominant_emotion
+        self.emotion_confidence = emotion_confidence
+
+
+def capture_camera_image() -> Optional[np.ndarray]:
+    camera = cv2.VideoCapture(0)
+    if not camera.isOpened():
+        logger.error("Could not open camera")
+        return None
     try:
-        cv2 = _get_cv2()  # Use lazy import
-        gemini_client = genai.Client()
-        _, buffer = cv2.imencode(".jpg", image_np)
-        image_bytes_for_gemini = buffer.tobytes()
+        max_attempts = 10
+        for _ in range(max_attempts):
+            ret, frame = camera.read()
+            if not ret:
+                logger.error("Could not capture image from camera")
+                return None
+            if np.any(frame > 10):
+                logger.info("Successfully captured camera image")
+                return frame
+            import time
 
-        gemini_response = gemini_client.models.generate_content(
-            model="gemini-2.0-flash-001",
-            contents=[
-                "Generate in a single sentence a description of the image in french.",
-                Part.from_bytes(data=image_bytes_for_gemini, mime_type="image/jpeg"),
-            ],
-        )
+            time.sleep(0.5)
+        logger.warning("All captured images were too dark")
+        return None
+    finally:
+        camera.release()
 
-        if (
-            gemini_response
-            and hasattr(gemini_response, "text")
-            and gemini_response.text
-        ):
-            result["image_description_fr"] = gemini_response.text.strip()
-    except Exception as e:
-        result["image_description_error"] = str(e)  # Process with DeepFace
+
+async def analyze_faces(image_np: np.ndarray) -> List[FaceAnalysisResult]:
+    faces_data = []
     try:
-        DeepFace = _get_deepface()  # Use lazy import
-        analysis_results = DeepFace.analyze(
+        DF = get_deepface()
+        results = await asyncio.to_thread(
+            DF.analyze,
             img_path=image_np,
             actions=["emotion"],
             detector_backend="yolov11m",
             align=True,
-            enforce_detection=False,
+            enforce_detection=True,
         )
-
-        faces_data = []
-        if isinstance(analysis_results, list):
-            for i, face_info in enumerate(analysis_results):
+        if isinstance(results, list):
+            for i, face_info in enumerate(results):
                 region = face_info.get("region")
                 if not region:
                     continue
-
                 emotions = face_info.get("emotion", {})
                 dominant_emotion = face_info.get("dominant_emotion", "unknown")
-                emotion_confidence = (
-                    max(emotions.values() or [0.0]) if emotions else 0.0
-                )
-
+                emotion_confidence = max(emotions.values()) if emotions else 0.0
                 faces_data.append(
-                    {
-                        "face_id": i + 1,
-                        "dominant_emotion": dominant_emotion,
-                        "emotion_confidence": emotion_confidence,
-                    }
+                    FaceAnalysisResult(
+                        face_id=i + 1,
+                        bounding_box={
+                            "x": region["x"],
+                            "y": region["y"],
+                            "width": region["w"],
+                            "height": region["h"],
+                        },
+                        dominant_emotion=dominant_emotion,
+                        emotion_confidence=emotion_confidence,
+                    )
                 )
-
-        result["face_analysis"] = faces_data
-        result["total_faces"] = len(faces_data)
     except Exception as e:
-        result["face_analysis_error"] = str(e)
+        logger.warning(f"DeepFace analysis failed: {e}")
+    return faces_data
 
+
+llm = ChatOpenAI(
+    openai_api_key=os.environ["OPENROUTER_API_KEY"],
+    openai_api_base=os.environ["OPENROUTER_BASE_URL"],
+    model_name="google/gemini-2.5-flash-preview-05-20",
+    temperature=0,
+    max_tokens=8096,
+    timeout=None,
+    max_retries=2,
+    streaming=True,
+)
+
+
+async def generate_image_description(image_np: np.ndarray) -> str:
+    try:
+        _, buffer = cv2.imencode(".jpg", image_np)
+        image_data = base64.b64encode(buffer).decode("utf-8")
+        message = {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Generate in a single sentence a description of the image in french.",
+                },
+                {
+                    "type": "image",
+                    "source_type": "base64",
+                    "data": image_data,
+                    "mime_type": "image/jpeg",
+                },
+            ],
+        }
+        result = await llm.ainvoke([message])
+        return result.content
+    except Exception as e:
+        logger.error(f"Error generating image description: {e}")
+        return "Erreur lors de la génération de la description"
+
+
+async def process_image_with_services(image_np: np.ndarray) -> dict:
+    result = {"faces": [], "image_description": None, "errors": []}
+    try:
+        faces = await analyze_faces(image_np)
+        result["faces"] = [
+            {
+                "face_id": face.face_id,
+                "dominant_emotion": face.dominant_emotion,
+                "emotion_confidence": face.emotion_confidence,
+                "bounding_box": face.bounding_box,
+            }
+            for face in faces
+        ]
+    except Exception as e:
+        result["errors"].append(f"Face analysis failed: {str(e)}")
+    try:
+        description = await generate_image_description(image_np)
+        result["image_description"] = description
+    except Exception as e:
+        result["errors"].append(f"Image description failed: {str(e)}")
     return result
+
+
+def format_analysis_output(result: dict) -> str:
+    output_parts = []
+    if result["errors"]:
+        output_parts.append("Errors occurred during analysis:")
+        for error in result["errors"]:
+            output_parts.append(f"- {error}")
+        output_parts.append("")
+    if result["image_description"]:
+        output_parts.append(f"Description: {result['image_description']}")
+    else:
+        output_parts.append("No image description available.")
+    faces = result["faces"]
+    if faces:
+        output_parts.append(f"\nFaces detected: {len(faces)}")
+        for face in faces:
+            emotion = face["dominant_emotion"]
+            confidence = face["emotion_confidence"]
+            output_parts.append(
+                f"Face {face['face_id']}: {emotion} (confidence: {confidence:.2f})"
+            )
+    else:
+        output_parts.append("\nNo faces detected in the image.")
+    return "\n".join(output_parts)
 
 
 @tool
@@ -117,75 +190,24 @@ def get_emotion_and_description() -> str:
 
     Returns:
         A string with either an error message or image description with emotion data.
-
-    """  # max_cameras = 10
-    # available = [
-    # ]
-
-    # for i in range(max_cameras):
-    #     cap = cv2.VideoCapture(i,cv2.CAP_DSHOW)
-    #     if not cap.read()[0]:
-    #         print(f"camera {i} not found")
-    #         continue
-    #     available.append(i)
-    #     cap.release()
-
-    # print(available)
-    cv2 = _get_cv2()  # Use lazy import
-    camera = cv2.VideoCapture(0)  # Use 0 for default camera
-
-    if not camera.isOpened():
-        return "Error: Could not open camera."
-
-    while True:
-        ret, frame = camera.read()
-        if not ret:
-            camera.release()
-            return "Error: Could not capture image."
-
-        # Check if the image is mostly black
-        if np.any(frame > 10):  # Adjust the threshold if needed
-            break  # Exit the loop once a non-black image is captured
-
-        import time
-
-        time.sleep(1)  # Adjust sleep time as needed
-
-    camera.release()
-
+    """
     try:
-        # Process the captured frame
-        result = process_image(frame)
-        cv2.imwrite("captured_image.png", frame)
-
-        # Check for errors
-        if "face_analysis_error" in result:
-            return f"Error in face analysis: {result['face_analysis_error']}"
-        if "image_description_error" in result:
-            return f"Error generating image description: {result['image_description_error']}"
-
-        # Format the output string
-        output = ""
-
-        # Add image description if available
-        if result["image_description_fr"]:
-            output += f"Description: {result['image_description_fr']}\n"
-        else:
-            output += "No image description available.\n"
-
-        # Add information about detected faces
-        if result["total_faces"] > 0:
-            for face in result["face_analysis"]:
-                emotion = face["dominant_emotion"]
-                confidence = face["emotion_confidence"]
-                output += f"Face {face['face_id']}: {emotion} (confidence: {confidence:.2f})\n"
-        else:
-            output += "No faces detected in the image."
-
-        return output.strip()
-
+        image_np = capture_camera_image()
+        if image_np is None:
+            return "Error: Could not capture image from camera."
+        try:
+            cv2.imwrite("captured_image.png", image_np)
+            logger.info("Captured image saved to captured_image.png")
+        except Exception as e:
+            logger.warning(f"Could not save captured image: {e}")
+        result = asyncio.run(process_image_with_services(image_np))
+        # If no faces and no description, make sure to return a clear message
+        if not result["faces"] and not result["image_description"]:
+            return "No faces detected and no image description available."
+        print("Result:", result)
+        print("Formatted Output:", format_analysis_output(result))
+        print("Output:", format_analysis_output(result))
+        return format_analysis_output(result)
     except Exception as e:
+        logger.error(f"Error processing image: {str(e)}")
         return f"Error processing image: {str(e)}"
-
-
-# get_emotion_and_description()

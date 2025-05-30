@@ -12,12 +12,12 @@ from typing_extensions import TypedDict
 load_dotenv()
 
 from src.agent_tools import (
+    check_detected_objects,
+    get_current_position,
     get_tech_doc,
     send_movement_command,
     send_pick_and_place_command,
     send_robot_to_initial_home_position,
-    check_detected_objects,
-    get_current_position
 )
 from src.simple_emotion_detector import get_emotion_and_description
 
@@ -28,7 +28,7 @@ TOOLS = [
     send_robot_to_initial_home_position,
     get_emotion_and_description,
     check_detected_objects,
-    get_current_position
+    get_current_position,
 ]
 
 chat_llm = ChatOpenAI(
@@ -60,6 +60,7 @@ The user input is from voice transcription which may contain errors. You need to
 Remember previous interactions to maintain conversational context.
 If a tool call fails, report the error to the user without retrying unless the user request a retry.
 """
+
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
