@@ -68,6 +68,7 @@ def send_robot_to_initial_home_position() -> str:
         print(error_msg)
         return error_msg
 
+
 @tool
 def get_current_position() -> str:
     """
@@ -95,7 +96,7 @@ def get_current_position() -> str:
         print(error_msg)
         return error_msg
 
-#TODO save image
+
 @tool
 def send_movement_command(
     X: int = 0, Y: int = 0, Z: int = 0, A: int = 0, B: int = 0, C: int = 0
@@ -290,11 +291,13 @@ def send_pick_and_place_command(item2pick: str, location2place: str) -> str:
 @tool
 def check_detected_objects() -> str:
     """
-    Triggers the camera and checks for all detected objects using computer vision.
+    Captures an image of the conveyor belt and detects objects present using the conveyor-mounted camera.
+    Use this tool when the user asks what items are on the conveyor, what can be picked, or requests an inventory of conveyor objects.
 
     Returns:
-        str: A message listing all detected objects and their coordinates, or a message indicating no objects were found.
-             Example: "Objects detected in image: box, wood" or "No objects detected in image"
+        str: A message listing detected objects with their coordinates and angles, e.g.,
+             "Objects detected in image: box at X:123.4, Y:56.7, Angle:0.0°, wood at X:...", or
+             "No objects detected on the conveyor" if none are found.
     """
     try:
         # Trigger camera and get vision data

@@ -188,11 +188,13 @@ def format_analysis_output(result: dict) -> str:
 @tool
 def get_emotion_and_description() -> str:
     """
-    Analyze the environment by capturing an image from the camera, processes it, and returns a string
-    containing either an error message or the image description plus emotion information of the robot's operator present in the image.
+    Captures an image of the lab environment (including the robot and its operator) and analyzes it to provide:
+      - A concise description of the scene.
+      - Dominant emotion and confidence score for the robot's operator.
+    Use this tool when the user asks to analyze the environment, take a picture, or inquire about how the operator is doing.
 
     Returns:
-        A string with either an error message or image description with emotion data.
+        A formatted string containing the image description and operator emotion data, or an error message if the capture or analysis fails.
     """
     try:
         image_np = capture_camera_image()
