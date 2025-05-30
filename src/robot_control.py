@@ -8,26 +8,27 @@ from ftplib import FTP_TLS
 
 from py_openshowvar import openshowvar
 
+
 # Mock openshowvar class for testing without actual robot connection
-# class openshowvar:
-#     def __init__(self, ip, port):
-#         self.ip = ip
-#         self.port = port
-#         self.can_connect = True
-#         print(f"Mock robot connection to {ip}:{port} initialized")
+class openshowvar:
+    def __init__(self, ip, port):
+        self.ip = ip
+        self.port = port
+        self.can_connect = True
+        print(f"Mock robot connection to {ip}:{port} initialized")
 
-#     def read(self, variable, debug=False):
-#         if debug:
-#             print(f"Mock reading {variable}")
-#         # Return a mock position for $POS_ACT
-#         if variable == "$POS_ACT":
-#             return b"E6POS: X 500.0, Y 300.0, Z 1200.0, A 180.0, B 0.0, C 180.0"
-#         return b"0"
+    def read(self, variable, debug=False):
+        if debug:
+            print(f"Mock reading {variable}")
+        # Return a mock position for $POS_ACT
+        if variable == "$POS_ACT":
+            return b"E6POS: X 500.0, Y 300.0, Z 1200.0, A 180.0, B 0.0, C 180.0"
+        return b"0"
 
-#     def write(self, variable, value, debug=False):
-#         if debug:
-#             print(f"Mock writing {value} to {variable}")
-#         return True
+    def write(self, variable, value, debug=False):
+        if debug:
+            print(f"Mock writing {value} to {variable}")
+        return True
 
 
 # === IP Configurations ===
@@ -174,7 +175,7 @@ def fetch_cognex_patterns() -> tuple[dict, dict, dict]:
                 return {
                     "X": float(last_row[x_idx]),
                     "Y": float(last_row[y_idx]),
-                    "Angle": float(last_row[a_idx])
+                    "Angle": float(last_row[a_idx]),
                 }
             return None
 
@@ -182,7 +183,9 @@ def fetch_cognex_patterns() -> tuple[dict, dict, dict]:
         wood_pattern = parse_pattern(4, 5, 6, 7)
         orange_box_pattern = parse_pattern(8, 9, 10, 11)
 
-        print(f"✅ Patterns: Box={box_pattern}, Wood={wood_pattern}, OrangeBox={orange_box_pattern}")
+        print(
+            f"✅ Patterns: Box={box_pattern}, Wood={wood_pattern}, OrangeBox={orange_box_pattern}"
+        )
         return box_pattern, wood_pattern, orange_box_pattern
 
     except Exception as e:
@@ -284,16 +287,12 @@ def control_gripper(client: openshowvar, state: str) -> None:
         client.write(
             "COM_ACTION", "10", debug=True
         )  # Trigger CASE 10: Set Digital Output
-        client.write(
-            "COM_VALUE1", "15", debug=True
-        )  # Set output pin number (OUT 15)
+        client.write("COM_VALUE1", "15", debug=True)  # Set output pin number (OUT 15)
         client.write("COM_VALUE2", "0", debug=True)  # Set OUT 15 to FALSE
         client.write(
             "COM_ACTION", "10", debug=True
         )  # Trigger CASE 10: Set Digital Output
-        client.write(
-            "COM_VALUE1", "16", debug=True
-        )  # Set output pin number (OUT 16)
+        client.write("COM_VALUE1", "16", debug=True)  # Set output pin number (OUT 16)
         client.write("COM_VALUE2", "0", debug=True)  # Set OUT 16 to FALSE
         print("Gripper is CLOSED.")
 
@@ -302,16 +301,12 @@ def control_gripper(client: openshowvar, state: str) -> None:
         client.write(
             "COM_ACTION", "10", debug=True
         )  # Trigger CASE 10: Set Digital Output
-        client.write(
-            "COM_VALUE1", "15", debug=True
-        )  # Set output pin number (OUT 15)
+        client.write("COM_VALUE1", "15", debug=True)  # Set output pin number (OUT 15)
         client.write("COM_VALUE2", "1", debug=True)  # Set OUT 15 to TRUE
         client.write(
             "COM_ACTION", "10", debug=True
         )  # Trigger CASE 10: Set Digital Output
-        client.write(
-            "COM_VALUE1", "16", debug=True
-        )  # Set output pin number (OUT 16)
+        client.write("COM_VALUE1", "16", debug=True)  # Set output pin number (OUT 16)
         client.write("COM_VALUE2", "0", debug=True)  # Set OUT 16 to FALSE
         print("Gripper is OPEN.")
 
@@ -417,7 +412,7 @@ def wait_for_target_position(
         print(current_data)
 
         # Collision check - this will raise ValueError if collision detected
-        #is_in_collision_zone(current_position, client)
+        # is_in_collision_zone(current_position, client)
 
         # print(f"Position dictionary: {current_position}")
 
