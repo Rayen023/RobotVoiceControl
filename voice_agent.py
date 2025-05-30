@@ -27,22 +27,24 @@ FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 16000
 CHUNK = 512
-MAX_RECORD_SECONDS = 30
-SILENCE_THRESHOLD = 4.0
-SPEECH_TIMEOUT = 10
 WAVE_OUTPUT_FILENAME = "temp_recording.wav"
 PROCESSED_AUDIO_FILENAME = "processed_recording.wav"
 
+MAX_RECORD_SECONDS = 20  # Reduced to prevent overly long recordings
+SILENCE_THRESHOLD = 1.5  # Much faster stop after speech ends
+SPEECH_TIMEOUT = 5  # Less waiting if no speech is detected
 # === GLOBAL VAD/SPEECH PARAMETERS ===
-VAD_THRESHOLD = 0.6
-VAD_MIN_SILENCE_DURATION_MS = 5000
-VAD_SPEECH_PAD_MS = 500
+VAD_THRESHOLD = 0.7  # Increased for stricter speech detection
+VAD_MIN_SILENCE_DURATION_MS = 1200  # Reduced for faster stop after speech
+VAD_SPEECH_PAD_MS = 200  # Less padding for more reactivity
 
-SPEECH_TIMESTAMP_THRESHOLD = 0.45
-SPEECH_TIMESTAMP_MIN_SILENCE_DURATION_MS = 1500
-SPEECH_TIMESTAMP_SPEECH_PAD_MS = 500
+SPEECH_TIMESTAMP_THRESHOLD = 0.55  # Increased for stricter segment detection
+SPEECH_TIMESTAMP_MIN_SILENCE_DURATION_MS = 500  # Reduced for quicker segmentation
+SPEECH_TIMESTAMP_SPEECH_PAD_MS = 200  # Less padding for more reactivity
 
-SPEECH_MIN_DURATION_SECONDS = 1.0  # Minimum duration of detected speech to accept
+SPEECH_MIN_DURATION_SECONDS = (
+    1.2  # Slightly increased to filter out short/noisy segments
+)
 
 AUDIO_INT16_NORMALIZATION = 32768.0  # Used to normalize int16 audio to [-1.0, 1.0]
 # ====================================
