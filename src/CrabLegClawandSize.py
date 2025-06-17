@@ -13,23 +13,9 @@ load_dotenv()
 
 def load_models():
     start_time = time.time()
-    if os.environ.get("USE_PY_OPENSHOWVAR") == "0":
-        mlp_model_path = os.path.join("models", "mlp_color_classifier.joblib")
-        yolo_classification_model = YOLO(os.path.join("models", "CrabBelly.pt"))
-        yolo_counting_model = YOLO(os.path.join("models", "CountingBest.pt"))
-    else:
-        base_model_dir = os.path.join(
-            "D:",
-            "RobotCommunication",
-            "PythonCommunication",
-            "CodesForLLM",
-            "CodesForLLM",
-            "MPOmodels",
-        )
-
-        mlp_model_path = os.path.join(base_model_dir, "mlp_color_classifier.joblib")
-        yolo_classification_model = YOLO(os.path.join(base_model_dir, "CrabBelly.pt"))
-        yolo_counting_model = YOLO(os.path.join(base_model_dir, "CountingBest.pt"))
+    mlp_model_path = os.path.join("models", "mlp_color_classifier.joblib")
+    yolo_classification_model = YOLO(os.path.join("models", "CrabBelly.pt"))
+    yolo_counting_model = YOLO(os.path.join("models", "CountingBest.pt"))
 
     model_bundle = joblib.load(mlp_model_path)
     pipeline = model_bundle["pipeline"]
