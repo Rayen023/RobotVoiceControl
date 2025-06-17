@@ -19,6 +19,7 @@ from src.agent_tools import (
     send_pick_and_place_command,
     send_robot_to_initial_home_position,
 )
+from src.crab_tools import analyze_crab_image
 from src.simple_emotion_detector import get_emotion_and_description
 
 TOOLS = [
@@ -29,6 +30,7 @@ TOOLS = [
     get_emotion_and_description,
     check_detected_objects,
     get_current_position,
+    analyze_crab_image,
 ]
 
 chat_llm = ChatOpenAI(

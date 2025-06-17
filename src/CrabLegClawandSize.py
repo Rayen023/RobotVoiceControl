@@ -1,36 +1,70 @@
-import time
-import cv2
-import numpy as np
-import joblib
-from ultralytics import YOLO
 import os
+import time
+
+import cv2
+import joblib
 import matplotlib.pyplot as plt
+import numpy as np
+from dotenv import load_dotenv
+from ultralytics import YOLO
 
-# === Global List to Store Carapace Widths ===
-carapace_widths_cm = []
+load_dotenv()
 
-# === Load Models Once ===
-print("[INFO] Loading models once...")
-mlp_model_path = r"D:\RobotCommunication\PythonCommunication\CodesForLLM\CodesForLLM\MPOmodels\mlp_color_classifier.joblib"
-model_bundle = joblib.load(mlp_model_path)
-pipeline = model_bundle['pipeline']
-mlp_classifier = model_bundle['classifier']
 
-yolo_classification_model = YOLO(r"D:\RobotCommunication\PythonCommunication\CodesForLLM\CodesForLLM\MPOmodels\CrabBelly.pt").to("cuda")
-yolo_counting_model = YOLO(r"D:\RobotCommunication\PythonCommunication\CodesForLLM\CodesForLLM\MPOmodels\CountingBest.pt").to("cuda")
+def load_models():
+    start_time = time.time()
+    if os.environ.get("USE_PY_OPENSHOWVAR") == "0":
+        mlp_model_path = os.path.join("models", "mlp_color_classifier.joblib")
+        yolo_classification_model = YOLO(os.path.join("models", "CrabBelly.pt"))
+        yolo_counting_model = YOLO(os.path.join("models", "CountingBest.pt"))
+    else:
+        base_model_dir = os.path.join(
+            "D:",
+            "RobotCommunication",
+            "PythonCommunication",
+            "CodesForLLM",
+            "CodesForLLM",
+            "MPOmodels",
+        )
+
+        mlp_model_path = os.path.join(base_model_dir, "mlp_color_classifier.joblib")
+        yolo_classification_model = YOLO(os.path.join(base_model_dir, "CrabBelly.pt"))
+        yolo_counting_model = YOLO(os.path.join(base_model_dir, "CountingBest.pt"))
+
+    model_bundle = joblib.load(mlp_model_path)
+    pipeline = model_bundle["pipeline"]
+    mlp_classifier = model_bundle["classifier"]
+    elapsed = time.time() - start_time
+    print(f"[Timing] Model loading took {elapsed:.4f}s")
+    return (
+        yolo_classification_model,
+        yolo_counting_model,
+        pipeline,
+        mlp_classifier,
+    )
+
 
 # === Color Feature Extraction ===
 t00 = time.time()
+
+
 def extract_color_features_from_image(image):
     hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     hist_hue = cv2.calcHist([hsv_image], [0], None, [256], [0, 256]).flatten()
     hist_saturation = cv2.calcHist([hsv_image], [1], None, [256], [0, 256]).flatten()
     hist_value = cv2.calcHist([hsv_image], [2], None, [256], [0, 256]).flatten()
     return np.concatenate((hist_hue, hist_saturation, hist_value))
+
+
 t11 = time.time()
+
 
 # === Process Image ===
 def process_image(image_path):
+    # load models
+    yolo_classification_model, yolo_counting_model, pipeline, mlp_classifier = (
+        load_models()
+    )
     print(f"\n[INFO] Processing: {os.path.basename(image_path)}")
     total_start = time.time()
 
@@ -44,7 +78,9 @@ def process_image(image_path):
         return
 
     # Step 1.5: Get CrabBelly size BEFORE resize
-    classification_result = yolo_classification_model.predict(image, verbose=False, device="cuda")[0]
+    classification_result = yolo_classification_model.predict(
+        image, verbose=False, device="cuda"
+    )[0]
     found_belly = False
     carapace_condition = "Unknown"
     carapace_width_cm = 0
@@ -59,17 +95,18 @@ def process_image(image_path):
                 width_cm = width_px / 63
                 height_cm = height_px / 63
                 carapace_width_cm = width_cm
-                print(f"📏 Carapace (CrabBelly) — Width: {width_cm:.2f} cm, Height: {height_cm:.2f} cm")
-                carapace_widths_cm.append(width_cm)
+                print(
+                    f"📏 Carapace (CrabBelly) — Width: {width_cm:.2f} cm, Height: {height_cm:.2f} cm"
+                )
                 found_belly = True
 
                 # Draw box and text on image
-                #cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 255), 3)
-                #label = f"{width_cm:.1f}cm x {height_cm:.1f}cm"
-                #cv2.putText(image, label, (x1, y1 - 15), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
-                #cv2.imshow("Crab Belly with Width", image)
-                #cv2.waitKey(0)
-                #cv2.destroyAllWindows()
+                # cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 255), 3)
+                # label = f"{width_cm:.1f}cm x {height_cm:.1f}cm"
+                # cv2.putText(image, label, (x1, y1 - 15), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
+                # cv2.imshow("Crab Belly with Width", image)
+                # cv2.waitKey(0)
+                # cv2.destroyAllWindows()
                 break
     if not found_belly:
         print("⚠️ No 'CrabBelly' bounding box found.")
@@ -104,7 +141,9 @@ def process_image(image_path):
             carapace_condition = prediction[0]
             t6 = time.time()
 
-            print(f"[Classification] Class ID: {cls_id}, Prediction: {prediction[0]}, Confidence: {confidence:.2f}")
+            print(
+                f"[Classification] Class ID: {cls_id}, Prediction: {prediction[0]}, Confidence: {confidence:.2f}"
+            )
             break
     else:
         print("[INFO] No classification target detected.")
@@ -112,7 +151,14 @@ def process_image(image_path):
 
     # Step 5: YOLO Counting with Claw Correction
     t7 = time.time()
-    results_counting = yolo_counting_model.predict(source=image_path, conf=0.7, save=False, stream=True, verbose=False, device="cuda")
+    results_counting = yolo_counting_model.predict(
+        source=image_path,
+        conf=0.7,
+        save=False,
+        stream=True,
+        verbose=False,
+        device="cuda",
+    )
     t8 = time.time()
 
     num_legs = 0
@@ -133,36 +179,56 @@ def process_image(image_path):
             class_name = names[class_id]
             x1, y1, x2, y2 = xyxy_tensor[i].numpy()
             center_x = (x1 + x2) / 2
-            if class_name == 'ClawL':
+            if class_name == "ClawL":
                 clawL_indices.append((i, center_x))
-            elif class_name == 'ClawR':
+            elif class_name == "ClawR":
                 clawR_indices.append((i, center_x))
 
         if len(clawL_indices) > 1:
             for idx, cx in clawL_indices:
                 if cx < image_width / 2:
-                    corrected_cls[idx] = names.index('ClawR')
+                    corrected_cls[idx] = names.index("ClawR")
         if len(clawR_indices) > 1:
             for idx, cx in clawR_indices:
                 if cx > image_width / 2:
-                    corrected_cls[idx] = names.index('ClawL')
+                    corrected_cls[idx] = names.index("ClawL")
 
-        abdomen_count = sum(1 for i, c in enumerate(corrected_cls) if names[int(c)] == 'Abdomen')
-        claw_left_count = sum(1 for i, c in enumerate(corrected_cls) if names[int(c)] == 'ClawL')
-        claw_right_count = sum(1 for i, c in enumerate(corrected_cls) if names[int(c)] == 'ClawR')
-        joint_count = sum(1 for i, c in enumerate(corrected_cls) if names[int(c)] == 'Joint')
+        abdomen_count = sum(
+            1 for i, c in enumerate(corrected_cls) if names[int(c)] == "Abdomen"
+        )
+        claw_left_count = sum(
+            1 for i, c in enumerate(corrected_cls) if names[int(c)] == "ClawL"
+        )
+        claw_right_count = sum(
+            1 for i, c in enumerate(corrected_cls) if names[int(c)] == "ClawR"
+        )
+        joint_count = sum(
+            1 for i, c in enumerate(corrected_cls) if names[int(c)] == "Joint"
+        )
 
         max_claws = 2 * abdomen_count
         num_claws = min(claw_left_count + claw_right_count, max_claws)
         num_legs = max(0, 8 - joint_count)
 
-        print(f"[Counting] Abdomen: {abdomen_count}, Claws (L+R): {num_claws}, Legs: {num_legs}")
+        print(
+            f"[Counting] Abdomen: {abdomen_count}, Claws (L+R): {num_claws}, Legs: {num_legs}"
+        )
 
     # Step 6: Determine Quality
     quality = "Unknown"
-    if num_legs == 8 and num_claws == 2 and carapace_condition == "Soft" and carapace_width_cm > 10.5:
+    if (
+        num_legs == 8
+        and num_claws == 2
+        and carapace_condition == "Soft"
+        and carapace_width_cm > 10.5
+    ):
         quality = "Premium"
-    elif num_legs == 8 and num_claws == 2 and carapace_condition == "Hard" and carapace_width_cm > 10.5:
+    elif (
+        num_legs == 8
+        and num_claws == 2
+        and carapace_condition == "Hard"
+        and carapace_width_cm > 10.5
+    ):
         quality = "Grade A"
     elif num_legs == 8 and num_claws == 2 and 9 <= carapace_width_cm < 10.5:
         quality = "Grade B"
@@ -172,7 +238,6 @@ def process_image(image_path):
         quality = "Meat use"
 
     print("\n=== Final Result ===")
-    print(f"Legs: {num_legs}, Claws: {num_claws}, Carapace Width: {carapace_width_cm:.2f} cm, Condition: {carapace_condition}, Quality: {quality}")
 
     total_end = time.time()
 
@@ -186,14 +251,17 @@ def process_image(image_path):
     print(f"YOLO Counting:            {t8 - t7:.4f}s")
     print(f"Total Pipeline Time:      {total_end - total_start:.4f}s\n")
 
-# === Loop for User to Try Multiple Images ===
-while True:
-    image_path = input("Enter image path (or 'q' to quit): ").strip()
-    if image_path.lower() == 'q':
-        print("👋 Exiting...")
-        break
-    if not os.path.isfile(image_path):
-        print("❌ Invalid path. Try again.")
-        continue
+    # === Loop for User to Try Multiple Images ===
+    # while True:
+    # image_path = input("Enter image path (or 'q' to quit): ").strip()
+    # if image_path.lower() == "q":
+    #     print("👋 Exiting...")
+    #     break
+    # if not os.path.isfile(image_path):
+    #     print("❌ Invalid path. Try again.")
+    #     continue
+    # process_image(image_path)
+    return f"Legs: {num_legs}, Claws: {num_claws}, Carapace Width: {carapace_width_cm:.2f} cm, Condition: {carapace_condition}, Quality: {quality}"
 
-    process_image(image_path)
+
+# process_image("MAY2024_Crab001_ventral_1_JPG.rf.6374659fc0dd947596fbc2c4fee442ab.jpg")
