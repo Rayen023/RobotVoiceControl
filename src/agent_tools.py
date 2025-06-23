@@ -1,6 +1,10 @@
 import json
 import os
 import time
+import glob
+from src.CrabLegClawandSize import process_image
+from src.crab_tools import parse_crab_analysis  # <- uses the parsing function added above
+
 
 from langchain_core.tools import tool
 
@@ -158,6 +162,7 @@ def send_movement_command(
         'Success: Robot moved to position X:1532.0, Y:245.0, Z:1350.0'
 
     You will receive a voice command describing a shape to draw (square, rectangle, triangle), along with optional dimensions and directions.
+    You should also interpret command like sweep, zigzag, L-shape, semi-rectangle, W-shape, a star, ect. You should then move the robot accordingly, always use small movements of 10-20 cm.
 
     Examples:
         - A square is drawn on two axes (e.g., X and Y), moving equal lengths:
@@ -323,6 +328,110 @@ def send_pick_and_place_command(item2pick: str, location2place: str) -> str:
         print(error_msg)
         return error_msg
 
+@tool
+def process_crabs_and_pick(
+    _: str = "",
+    condition: str = "",
+    location: str = "Conveyor",
+    min_legs: int = None,
+    max_legs: int = None,
+    min_claws: int = None,
+    max_claws: int = None,
+    min_size: float = None,
+    max_size: float = None,
+    shell_condition: str = None
+) -> str:
+    """
+    Prompts user to enter crab image paths one-by-one and evaluates each crab against the provided filters.
+    Type 'q' to stop.
+
+    Args:
+        condition (str): Quality grade (e.g., 'Premium', 'Grade A'). Optional.
+        location (str): Destination for pick-and-place ('Conveyor' or 'bin').
+        min_legs, max_legs (int): Leg count filter (0 to 8).
+        min_claws, max_claws (int): Claw count filter (0 to 2).
+        min_size, max_size (float): Carapace width range in cm.
+        shell_condition (str): 'Soft' or 'Hard' shell. Optional.
+
+    Returns:
+        str: Summary of evaluations.
+    """
+
+    # ✅ Cap invalid biological values
+    if min_legs is not None and min_legs > 8:
+        print("⚠️ Crabs have max 8 legs. Adjusting min_legs to 8.")
+        min_legs = 8
+    if max_legs is not None and max_legs > 8:
+        max_legs = 8
+    if min_claws is not None and min_claws > 2:
+        print("⚠️ Crabs have max 2 claws. Adjusting min_claws to 2.")
+        min_claws = 2
+    if max_claws is not None and max_claws > 2:
+        max_claws = 2
+
+    results = []
+
+    print(f"\n📂 Starting crab inspection loop → location: '{location}'.")
+    print("📸 Enter image path (or 'q' to quit):")
+
+    while True:
+        image_path = input("→ Image path: ").strip()
+
+        if image_path.lower() == "q":
+            print("👋 Exiting crab processing loop.")
+            break
+
+        if not os.path.isfile(image_path):
+            print("❌ Invalid path. Please try again.")
+            continue
+
+        try:
+            result_str = process_image(image_path)
+            crab_data = parse_crab_analysis(result_str)
+
+            criteria = []
+
+            if min_legs is not None:
+                criteria.append(crab_data["legs"] >= min_legs)
+            if max_legs is not None:
+                criteria.append(crab_data["legs"] <= max_legs)
+
+            if min_claws is not None:
+                criteria.append(crab_data["claws"] >= min_claws)
+            if max_claws is not None:
+                criteria.append(crab_data["claws"] <= max_claws)
+
+            if min_size is not None:
+                criteria.append(crab_data["carapace_width_cm"] >= min_size)
+            if max_size is not None:
+                criteria.append(crab_data["carapace_width_cm"] <= max_size)
+
+            if shell_condition is not None:
+                criteria.append(
+                    crab_data["carapace_condition"].lower() == shell_condition.lower()
+                )
+
+            if condition:
+                criteria.append(
+                    crab_data["quality_grade"].lower() == condition.lower()
+                )
+
+            match = all(criteria)
+
+            if match:
+                message = f"{os.path.basename(image_path)} → ✅ Crab matches criteria. Robot is ready for pick and place."
+            else:
+                message = f"{os.path.basename(image_path)} → ❌ Does not match requested criteria"
+
+            print(message)
+            results.append(message)
+
+        except Exception as e:
+            err_msg = f"{os.path.basename(image_path)} → ⚠️ Error: {e}"
+            print(err_msg)
+            results.append(err_msg)
+
+    return "\n".join(results)
 
 @tool
 def check_detected_objects() -> str:

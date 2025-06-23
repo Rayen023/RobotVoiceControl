@@ -3,12 +3,14 @@ import os
 from langchain_core.tools import tool
 
 from src.CrabLegClawandSize import process_image
+import re
 
 
 @tool
 def analyze_crab_image(image_path: str = None) -> str:
     """
     Analyzes a crab image to extract features like leg count, claw count, carapace width,
+    Soft shell crabs are clean and without barcnacles, while hard shell crabs may have barnacles and are dirty.
     shell condition, and quality grade using computer vision models.
     Do not ask the usee for the image path as this tool will prompt for it interactively in the console/terminal.
 
@@ -35,3 +37,26 @@ def analyze_crab_image(image_path: str = None) -> str:
 
     except Exception as e:
         return f"Error: {str(e)}"
+    
+    
+
+def parse_crab_analysis(text: str) -> dict:
+    """
+    Parses the crab analysis string into a structured dictionary.
+    Example: "Legs: 8, Claws: 2, Carapace Width: 10.50 cm, Condition: soft, Quality: Premium"
+    """
+    try:
+        pattern = r"Legs: (\d+), Claws: (\d+), Carapace Width: ([\d.]+) cm, Condition: (\w+), Quality: ([\w\s]+)"
+        match = re.match(pattern, text)
+        if not match:
+            raise ValueError("Invalid format")
+
+        return {
+            "legs": int(match.group(1)),
+            "claws": int(match.group(2)),
+            "carapace_width": float(match.group(3)),
+            "shell_condition": match.group(4).capitalize(),
+            "quality_grade": match.group(5).strip().capitalize(),
+        }
+    except Exception as e:
+        raise ValueError(f"Parsing error: {e}")

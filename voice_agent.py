@@ -255,23 +255,37 @@ def main():
             print(f"You said: {transcription}")
             print("=" * 50 + "\n")
 
-            events = graph.stream(
+            # Start external timing (optional)
+            t_start_decision = time.time()
+
+            # Run LangGraph agent
+            result = graph.invoke(
                 {"messages": [{"role": "user", "content": transcription}]},
-                config,
-                stream_mode="values",
+                config=config
             )
 
-            final_response = ""
-            for event in events:
-                final_response = event["messages"][-1].content
+            # End external timing (optional)
+            t_end_decision = time.time()
+
+            # Extract response and internal decision time from result
+            final_response = result["messages"][-1].content
+            decision_time_ms = result.get("decision_time_ms", None)
 
             print("\nAI Assistant:", final_response)
-            # Clean up the response text for TTS
+
             cleaned_response = clean_text_for_tts(final_response)
             speak_text(cleaned_response)
+
+            print("\n--- Timing Summary ---")
+            if decision_time_ms is not None:
+                print(f"🧠 Internal LLM decision time: {decision_time_ms} ms")
+            print(f"🕒 Total time (transcription ➝ response): {(t_end_decision - t_start_decision) * 1000:.0f} ms")
+            print("-------------------------\n")
+
     except KeyboardInterrupt:
         print("\nExiting voice-controlled agent. Goodbye!")
 
 
 if __name__ == "__main__":
     main()
+
