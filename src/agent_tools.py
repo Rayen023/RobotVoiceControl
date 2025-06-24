@@ -79,7 +79,7 @@ def send_robot_to_initial_home_position() -> str:
         wait_for_target_position(
             client,
             target_position={"X": 1332.63, "Y": 0, "Z": 1270},
-            timeout=30,
+            # timeout=30,
             tolerance=0.5,
         )
         time.sleep(0.5)
@@ -207,7 +207,7 @@ def send_movement_command(
                 "Y": pos_dict["Y"],
                 "Z": pos_dict["Z"],
             },
-            timeout=30,
+            # timeout=30,
             tolerance=0.5,
         )
         time.sleep(0.5)

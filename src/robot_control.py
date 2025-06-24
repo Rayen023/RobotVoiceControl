@@ -364,17 +364,18 @@ def parse_robot_data(data):
 def wait_for_target_position(
     client: openshowvar,
     target_position: dict,
-    timeout: float = 30,
+    timeout: float = 10,
     tolerance: float = 0.1,
     tool_frame: dict = None,
 ) -> None:
     """
     Wait until the robot's position matches the target position within a given tolerance.
+    Exits if robot position doesn't change for the timeout duration.
 
     Args:
         client (openshowvar): Robot client object
         target_position (dict): Target position with X, Y, Z coordinates
-        timeout (float): Maximum waiting time in seconds
+        timeout (float): Maximum time in seconds to wait without position change
         tolerance (float): Acceptable position error
         tool_frame (dict): Tool offset values
 
@@ -383,36 +384,28 @@ def wait_for_target_position(
     """
     if client is None:
         raise ValueError("Robot client is not connected")
-    print("here 1", "*" * 20)
 
     if not all(key in target_position for key in ["X", "Y", "Z"]):
         raise ValueError("Target position must contain X, Y, and Z coordinates")
-    print("here 1", "*" * 20)
-
-    start_time = time.time()
 
     # Apply tool offset if provided
     if tool_frame:
         tool_offsets = {key: tool_frame.get(key, 0) for key in ["X", "Y", "Z"]}
-        print("here 1", "*" * 20)
 
     else:
         tool_offsets = {"X": 0, "Y": 0, "Z": 0}
-        print("here 1", "*" * 20)
 
     adjusted_target_position = {
         key: target_position[key] + tool_offsets[key] for key in ["X", "Y", "Z"]
     }
-    print("here 1", "*" * 20)
 
-    while True:  # Read the current position from the robot
+    previous_position = None
+    last_movement_time = time.time()
+
+    while True:
         current_position_raw = client.read("$POS_ACT", debug=True).decode("utf-8")
-        print("here 1", "*" * 20)
 
-        # Print raw data for debugging
-        # print(f"Current position: {current_position_raw}")
         current_data = current_position_raw.replace("E6POS:", "").strip().split(",")
-        # print(f"Current data: {current_data}")
         current_position = parse_robot_data(current_data)
         print(current_data)
 
@@ -420,6 +413,17 @@ def wait_for_target_position(
         # is_in_collision_zone(current_position, client)
 
         # print(f"Position dictionary: {current_position}")
+
+        if previous_position is not None:
+            position_changed = any(
+                current_position[key] != previous_position[key]
+                for key in current_position.keys()
+            )
+            if position_changed:
+                last_movement_time = time.time()
+
+        # Update previous position
+        previous_position = current_position.copy()
 
         # Compare only X, Y, and Z positions
         position_reached = all(
@@ -431,9 +435,11 @@ def wait_for_target_position(
             print("Target position reached (X, Y, Z). Ready for next movement.")
             break
 
-        # Check for timeout
-        if time.time() - start_time > timeout:
-            raise TimeoutError(f"Unable to move the robot to target position.")
+        # Check if robot hasn't moved for the timeout duration
+        if time.time() - last_movement_time > timeout:
+            raise TimeoutError(
+                f"Robot position hasn't changed for {timeout} seconds. Movement may be stuck."
+            )
 
         time.sleep(0.1)
 
@@ -495,7 +501,7 @@ def pick_and_place(
             "Y": pick_y,
             "Z": 1250,
         },
-        timeout=30,
+        # timeout=30,
         tolerance=0.5,
         tool_frame=tool_offset,
     )
@@ -520,7 +526,7 @@ def pick_and_place(
             "Y": pick_y,
             "Z": pick_z,
         },
-        timeout=30,
+        # timeout=30,
         tolerance=0.5,
         tool_frame=tool_offset,
     )
@@ -549,7 +555,7 @@ def pick_and_place(
             "Y": pick_y,
             "Z": 1300,
         },
-        timeout=30,
+        # timeout=30,
         tolerance=0.5,
         tool_frame=tool_offset,
     )
@@ -575,7 +581,7 @@ def pick_and_place(
             "Y": location2place_coords["Y"],
             "Z": adjusted_z,
         },
-        timeout=30,
+        # timeout=30,
         tolerance=0.5,
     )
     time.sleep(0.5)
@@ -598,7 +604,7 @@ def pick_and_place(
             "Y": location2place_coords["Y"],
             "Z": location2place_coords["Z"],
         },
-        timeout=30,
+        # timeout=30,
         tolerance=0.5,
     )
     time.sleep(0.5)
