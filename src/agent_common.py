@@ -37,7 +37,6 @@ chat_llm = ChatOpenAI(
     model_name="google/gemini-2.5-flash-preview-05-20",  # "openai/gpt-4o-mini",
     temperature=0,
     max_tokens=8096,
-    timeout=None,
     max_retries=2,
     streaming=False,
 )

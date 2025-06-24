@@ -105,7 +105,6 @@ llm = ChatOpenAI(
     model_name="google/gemini-2.5-flash-preview-05-20",
     temperature=0,
     max_tokens=8096,
-    timeout=None,
     max_retries=2,
     streaming=True,
 )
