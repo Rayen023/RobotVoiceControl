@@ -74,11 +74,11 @@ def send_robot_to_initial_home_position() -> str:
         initial_pos = parse_position_data(initial_pos_str)
 
         cartesian_movement(
-            client, 1432, 245, 1300, 178, 0, 180, Move="PTP"
+            client, 1332.63, 0, 1270, 178.75, 0, -179.91, Move="PTP"
         )  # Adjust Z value
         wait_for_target_position(
             client,
-            target_position={"X": 1432, "Y": 245, "Z": 1300},
+            target_position={"X": 1332.63, "Y": 0, "Z": 1270},
             timeout=30,
             tolerance=0.5,
         )
