@@ -102,7 +102,7 @@ async def analyze_faces(image_np: np.ndarray) -> List[FaceAnalysisResult]:
 llm = ChatOpenAI(
     openai_api_key=os.environ["OPENROUTER_API_KEY"],
     openai_api_base=os.environ["OPENROUTER_BASE_URL"],
-    model_name="google/gemini-2.5-flash-preview-05-20",
+    model_name="google/gemini-2.5-flash",
     temperature=0,
     max_tokens=8096,
     max_retries=2,

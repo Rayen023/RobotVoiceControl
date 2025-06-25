@@ -19,7 +19,8 @@ from silero_vad import (
 
 from src.agent_common import graph
 from src.tts import speak_text
-#from src.tts_gemini import speak_text
+
+# from src.tts_gemini import speak_text
 
 thread_id = str(uuid.uuid4())  # Generate a unique thread ID for each session
 
@@ -163,7 +164,7 @@ def transcribe_audio(audio_file):
         print("Transcribing audio...")
 
         response = transcription_client.models.generate_content(
-            model="gemini-2.5-flash-preview-05-20",  # google/gemini-2.5-flash-preview-05-20
+            model="gemini-2.5-flash",
             contents=[
                 """
                 You are a transcription assistant specialized in voice-controlled KUKA robot. Transcribe the audio using the robotics context to resolve unclear words.
@@ -194,39 +195,39 @@ def transcribe_audio(audio_file):
             os.remove(PROCESSED_AUDIO_FILENAME)
 
 
-def clean_text_for_tts(text):
-    """Clean text for text-to-speech by removing markdown and special characters"""
-    if not text:
-        return ""
+# def clean_text_for_tts(text):
+#     """Clean text for text-to-speech by removing markdown and special characters"""
+#     if not text:
+#         return ""
 
-    # Remove bullet points and list formatting
-    text = re.sub(
-        r"^\s*[\*\-\+]\s*", "", text, flags=re.MULTILINE
-    )  # Remove bullet points
-    text = re.sub(
-        r"^\s*\d+\.\s*", "", text, flags=re.MULTILINE
-    )  # Remove numbered lists
+#     # Remove bullet points and list formatting
+#     text = re.sub(
+#         r"^\s*[\*\-\+]\s*", "", text, flags=re.MULTILINE
+#     )  # Remove bullet points
+#     text = re.sub(
+#         r"^\s*\d+\.\s*", "", text, flags=re.MULTILINE
+#     )  # Remove numbered lists
 
-    # Remove markdown formatting (more specific patterns)
-    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)  # Remove bold **text**
-    text = re.sub(
-        r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"\1", text
-    )  # Remove italic *text* but not bullet points
-    text = re.sub(r"`(.+?)`", r"\1", text)  # Remove code `text`
-    text = re.sub(r"```.*?```", "", text, flags=re.DOTALL)  # Remove code blocks
+#     # Remove markdown formatting (more specific patterns)
+#     text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)  # Remove bold **text**
+#     text = re.sub(
+#         r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"\1", text
+#     )  # Remove italic *text* but not bullet points
+#     text = re.sub(r"`(.+?)`", r"\1", text)  # Remove code `text`
+#     text = re.sub(r"```.*?```", "", text, flags=re.DOTALL)  # Remove code blocks
 
-    # Remove other special characters that interfere with TTS
-    text = re.sub(r"[#]+\s*", "", text)  # Remove headers ###
-    text = re.sub(r"[\[\](){}]", "", text)  # Remove brackets
-    text = re.sub(r"[_~^]", "", text)  # Remove underscores, tildes, carets
-    text = re.sub(r"[-]{2,}", "", text)  # Remove multiple dashes
+#     # Remove other special characters that interfere with TTS
+#     text = re.sub(r"[#]+\s*", "", text)  # Remove headers ###
+#     text = re.sub(r"[\[\](){}]", "", text)  # Remove brackets
+#     text = re.sub(r"[_~^]", "", text)  # Remove underscores, tildes, carets
+#     text = re.sub(r"[-]{2,}", "", text)  # Remove multiple dashes
 
-    # Clean up whitespace
-    text = re.sub(r"\n+", " ", text)  # Replace newlines with spaces
-    text = re.sub(r"\s+", " ", text)  # Replace multiple spaces with single space
-    text = text.strip()  # Remove leading/trailing whitespace
+#     # Clean up whitespace
+#     text = re.sub(r"\n+", " ", text)  # Replace newlines with spaces
+#     text = re.sub(r"\s+", " ", text)  # Replace multiple spaces with single space
+#     text = text.strip()  # Remove leading/trailing whitespace
 
-    return text
+#     return text
 
 
 def main():
@@ -267,8 +268,8 @@ def main():
 
             print("\nAI Assistant:", final_response)
             # Clean up the response text for TTS
-            cleaned_response = clean_text_for_tts(final_response)
-            speak_text(cleaned_response)
+            # cleaned_response = clean_text_for_tts(final_response)
+            speak_text(final_response)
     except KeyboardInterrupt:
         print("\nExiting voice-controlled agent. Goodbye!")
 
