@@ -38,11 +38,22 @@ DEF ActionLoop()
   COM_ACTION = 0
   WHILE COM_ACTION >= 0
     SWITCH COM_ACTION
-    CASE 3
-      INTERRUPT ON 10
-      LIN COM_E6POS
-      INTERRUPT OFF 10
+    
+    ; Move Joints
+    CASE 2
+      PTP COM_E6AXIS
       COM_ACTION = 0
+
+    ; Move Linear
+    CASE 3
+      LIN COM_E6POS
+      COM_ACTION = 0
+
+    ; Move Circular
+    CASE 4
+      CIRC COM_POS,COM_E6POS
+      COM_ACTION = 0
+
     CASE 10
       COM_ACTCNT = COM_ACTCNT + 1
       io_id = COM_VALUE1

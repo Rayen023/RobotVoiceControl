@@ -16,8 +16,12 @@ from src.robot_control import (
     connect_to_robot,
     control_gripper,
     fetch_cognex_patterns,
+    joint_movement,
+    normalize_angle,
+    parse_joint_data,
     pick_and_place,
     trigger_camera,
+    wait_for_target_joint_position,
     wait_for_target_position,
 )
 
@@ -43,6 +47,14 @@ def positions_equal(pos1, pos2, tolerance=0.1):
     """Check if two positions are equal within tolerance"""
     for axis in ["X", "Y", "Z"]:
         if abs(pos1.get(axis, 0) - pos2.get(axis, 0)) > tolerance:
+            return False
+    return True
+
+
+def joints_equal(joints1, joints2, tolerance=0.5):
+    """Check if two joint positions are equal within tolerance"""
+    for joint in ["A1", "A2", "A3", "A4", "A5", "A6"]:
+        if abs(joints1.get(joint, 0) - joints2.get(joint, 0)) > tolerance:
             return False
     return True
 
@@ -370,5 +382,102 @@ def check_detected_objects() -> str:
 
     except Exception as e:
         error_msg = f"Failed to check detected objects: {str(e)}"
+        print(error_msg)
+        return error_msg
+
+
+@tool
+def send_joint_movement_command(
+    A1: float = 0,
+    A2: float = 0,
+    A3: float = 0,
+    A4: float = 0,
+    A5: float = 0,
+    A6: float = 0,
+) -> str:
+    """
+    Moves the robot by the specified relative joint angles in degrees.
+
+    Args:
+        A1 (float, optional): Relative movement for joint A1 in degrees. Defaults to 0.
+        A2 (float, optional): Relative movement for joint A2 in degrees. Defaults to 0.
+        A3 (float, optional): Relative movement for joint A3 in degrees. Defaults to 0.
+        A4 (float, optional): Relative movement for joint A4 in degrees. Defaults to 0.
+        A5 (float, optional): Relative movement for joint A5 in degrees. Defaults to 0.
+        A6 (float, optional): Relative movement for joint A6 in degrees. Defaults to 0.
+
+    Returns:
+        str: Success message with final joint positions if operation completed successfully,
+             or an error message if the movement failed.
+
+    Notes:
+        - All joint angles are automatically normalized to be between -180 and 180 degrees
+        - Joint movements are relative to the current position
+        - Use this for precise joint control when Cartesian movement is not suitable
+
+    Example:
+        >>> send_joint_movement_command(A1=30, A3=-45)
+        'Success: Robot moved to joint positions A1:25.0, A2:-10.5, A3:-65.2, A4:0.0, A5:90.0, A6:0.0'
+    """
+    try:
+        client = connect_to_robot(ROBOT_IP, ROBOT_PORT)
+
+        print(f"Joint movements: A1={A1}, A2={A2}, A3={A3}, A4={A4}, A5={A5}, A6={A6}")
+
+        # Get initial joint positions
+        initial_axis_str = client.read("$AXIS_ACT", debug=True).decode("utf-8")
+        initial_joints = parse_joint_data(initial_axis_str)
+
+        # Calculate target joint positions
+        target_joints = {}
+        joint_movements = {"A1": A1, "A2": A2, "A3": A3, "A4": A4, "A5": A5, "A6": A6}
+
+        for joint, movement in joint_movements.items():
+            target_joints[joint] = normalize_angle(
+                initial_joints.get(joint, 0) + movement
+            )
+
+        # Execute joint movement
+        joint_movement(client, A1, A2, A3, A4, A5, A6)
+
+        # Wait for target position
+        wait_for_target_joint_position(
+            client,
+            target_joints=target_joints,
+            timeout=30,
+            tolerance=0.5,
+        )
+        time.sleep(0.5)
+
+        # Get final joint positions and check if robot moved
+        final_axis_str = client.read("$AXIS_ACT", debug=True).decode("utf-8")
+        final_joints = parse_joint_data(final_axis_str)
+
+        if joints_equal(initial_joints, final_joints):
+            raise Exception("Was not able to move the robot joints")
+
+        return f"Success: Robot moved to joint positions A1:{final_joints.get('A1', 0):.1f}, A2:{final_joints.get('A2', 0):.1f}, A3:{final_joints.get('A3', 0):.1f}, A4:{final_joints.get('A4', 0):.1f}, A5:{final_joints.get('A5', 0):.1f}, A6:{final_joints.get('A6', 0):.1f}"
+    except Exception as e:
+        error_msg = f"Failed to move robot joints: {str(e)}"
+        print(error_msg)
+        return error_msg
+
+
+@tool
+def get_current_joint_positions() -> str:
+    """
+    Returns the current joint positions of the robot in degrees.
+
+    Returns:
+        str: Either an Error message if an exception occurred or the current joint angles of the robot.
+    """
+    try:
+        client = connect_to_robot(ROBOT_IP, ROBOT_PORT)
+        current_axis = client.read("$AXIS_ACT", debug=True).decode("utf-8")
+        current_joints = parse_joint_data(current_axis)
+
+        return f"The current joint positions of the robot: A1: {current_joints.get('A1', 0):.1f}°, A2: {current_joints.get('A2', 0):.1f}°, A3: {current_joints.get('A3', 0):.1f}°, A4: {current_joints.get('A4', 0):.1f}°, A5: {current_joints.get('A5', 0):.1f}°, A6: {current_joints.get('A6', 0):.1f}°"
+    except Exception as e:
+        error_msg = f"Failed to get joint positions: {str(e)}"
         print(error_msg)
         return error_msg

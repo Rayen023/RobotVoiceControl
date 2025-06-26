@@ -611,3 +611,158 @@ def pick_and_place(
     # Close gripper
     control_gripper(client, "close")
     time.sleep(0.5)
+
+
+def normalize_angle(angle):
+    """
+    Normalize angle to be between -180 and 180 degrees.
+
+    Args:
+        angle (float): Angle in degrees
+
+    Returns:
+        float: Normalized angle between -180 and 180 degrees
+    """
+    while angle > 180:
+        angle -= 360
+    while angle < -180:
+        angle += 360
+    return angle
+
+
+def joint_movement(
+    client: openshowvar,
+    a1: float = 0,
+    a2: float = 0,
+    a3: float = 0,
+    a4: float = 0,
+    a5: float = 0,
+    a6: float = 0,
+) -> None:
+    """
+    Send joint movement command to the robot.
+
+    Args:
+        client (openshowvar): Robot client object
+        a1 (float): Relative movement for joint A1 in degrees
+        a2 (float): Relative movement for joint A2 in degrees
+        a3 (float): Relative movement for joint A3 in degrees
+        a4 (float): Relative movement for joint A4 in degrees
+        a5 (float): Relative movement for joint A5 in degrees
+        a6 (float): Relative movement for joint A6 in degrees
+
+    Returns:
+        None
+    """
+    if client is None:
+        raise ValueError("Robot client is not connected")
+
+    # Get current joint positions
+    current_axis_str = client.read("$AXIS_ACT", debug=True).decode("utf-8")
+    current_axis_data = current_axis_str.strip("{}").replace("E6AXIS:", "").split(",")
+
+    # Parse current joint positions
+    current_joints = {}
+    for item in current_axis_data:
+        if len(item.split()) == 2:
+            joint_name, joint_value = item.split()
+            current_joints[joint_name] = float(joint_value)
+
+    # Calculate new joint positions with relative movements
+    new_a1 = normalize_angle(current_joints.get("A1", 0) + a1)
+    new_a2 = normalize_angle(current_joints.get("A2", 0) + a2)
+    new_a3 = normalize_angle(current_joints.get("A3", 0) + a3)
+    new_a4 = normalize_angle(current_joints.get("A4", 0) + a4)
+    new_a5 = normalize_angle(current_joints.get("A5", 0) + a5)
+    new_a6 = normalize_angle(current_joints.get("A6", 0) + a6)
+
+    # Format joint positions for robot command
+    new_joints = f"{{A1 {new_a1:.3f}, A2 {new_a2:.3f}, A3 {new_a3:.3f}, A4 {new_a4:.3f}, A5 {new_a5:.3f}, A6 {new_a6:.3f}}}"
+
+    # Send joint position command
+    client.write(
+        "COM_E6AXIS", new_joints, debug=True
+    )  # Set target joint positions for CASE 2 movement
+
+    # Set joint velocity and acceleration (if needed)
+    client.write("$VEL.AXIS[1]", "50", debug=True)  # Set joint velocity percentage
+    client.write("$ACC.AXIS[1]", "50", debug=True)  # Set joint acceleration percentage
+
+    # Trigger CASE 2: Move Joints
+    client.write("COM_ACTION", "2", debug=True)
+
+    print(f"🚀 Moving joints to {new_joints}")
+
+
+def parse_joint_data(axis_string):
+    """Helper function to parse robot joint data into a dictionary"""
+    axis_data = axis_string.strip("{}").replace("E6AXIS:", "").split(",")
+    return {
+        item.split()[0]: float(item.split()[1])
+        for item in axis_data
+        if len(item.split()) == 2
+    }
+
+
+def wait_for_target_joint_position(
+    client: openshowvar,
+    target_joints: dict,
+    timeout: float = 10,
+    tolerance: float = 0.5,
+) -> None:
+    """
+    Wait until the robot's joint positions match the target positions within a given tolerance.
+
+    Args:
+        client (openshowvar): Robot client object
+        target_joints (dict): Target joint positions with A1, A2, A3, A4, A5, A6
+        timeout (float): Maximum time in seconds to wait without position change
+        tolerance (float): Acceptable joint position error in degrees
+
+    Returns:
+        None
+    """
+    if client is None:
+        raise ValueError("Robot client is not connected")
+
+    if not all(key in target_joints for key in ["A1", "A2", "A3", "A4", "A5", "A6"]):
+        raise ValueError("Target joints must contain A1, A2, A3, A4, A5, A6")
+
+    previous_joints = None
+    last_movement_time = time.time()
+
+    while True:
+        current_axis_str = client.read("$AXIS_ACT", debug=True).decode("utf-8")
+        current_joints = parse_joint_data(current_axis_str)
+
+        # Check if we're within tolerance for all joints
+        within_tolerance = True
+        for joint in ["A1", "A2", "A3", "A4", "A5", "A6"]:
+            diff = abs(current_joints.get(joint, 0) - target_joints[joint])
+            if diff > tolerance:
+                within_tolerance = False
+                break
+
+        if within_tolerance:
+            print("✅ Target joint position reached")
+            break
+
+        # Check if robot is still moving
+        if previous_joints is not None:
+            joints_changed = False
+            for joint in ["A1", "A2", "A3", "A4", "A5", "A6"]:
+                if (
+                    abs(current_joints.get(joint, 0) - previous_joints.get(joint, 0))
+                    > 0.01
+                ):
+                    joints_changed = True
+                    break
+
+            if joints_changed:
+                last_movement_time = time.time()
+            elif time.time() - last_movement_time > timeout:
+                print("⚠️ Joint movement timeout - robot may have stopped")
+                break
+
+        previous_joints = current_joints.copy()
+        time.sleep(0.1)
