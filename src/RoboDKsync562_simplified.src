@@ -1,26 +1,28 @@
 &ACCESS RVP
 &REL 2
-DEF ROBOTSYNC()
+DEF ROBOTSNCNULLFRAME()
   BAS(#INITMOV,0)
   PTP $AXIS_ACT
   $OUT[17] = FALSE
-
+  
   INTERRUPT DECL 5 WHEN $IN[1] DO OnProbeTriggered()
   INTERRUPT DECL 10 WHEN $OUT[17]==TRUE DO StopMovementInterrupt()
   
   $ORI_TYPE = #VAR
   $CIRC_TYPE = #BASE
-  $VEL.ORI1 = 200
-  $VEL.ORI2 = 200
-  $ACC.ORI1 = 100
-  $ACC.ORI2 = 100
+  $VEL.ORI1 = 30
+  $VEL.ORI2 = 30
+  $ACC.ORI1 = 20
+  $ACC.ORI2 = 20
 
   $VEL.CP = 3
   $ACC.CP = 3
-
+  $TOOL = $NULLFRAME
+  $ACT_TOOL = 0
+  $BASE = $NULLFRAME
+  $ACT_BASE = 0
   $BASE = {FRAME: X 0, Y 0, Z 0, A 0, B 0, C 0}
   $TOOL = {FRAME: X 0, Y 0, Z 0, A 0, B 0, C 0}
-
   $ADVANCE = 0
   $APO.CPTP = 0
   $APO.CDIS = 0
@@ -38,31 +40,31 @@ DEF ActionLoop()
   COM_ACTION = 0
   WHILE COM_ACTION >= 0
     SWITCH COM_ACTION
-    
-    ; Move Joints
-    CASE 2
-      PTP COM_E6AXIS
-      COM_ACTION = 0
-
-    ; Move Linear
-    CASE 3
-      LIN COM_E6POS
-      COM_ACTION = 0
-
-    ; Move Circular
-    CASE 4
-      CIRC COM_POS,COM_E6POS
-      COM_ACTION = 0
-
-    CASE 10
-      COM_ACTCNT = COM_ACTCNT + 1
-      io_id = COM_VALUE1
-      IF COM_VALUE2 > 0.5 THEN
-        $OUT[io_id] = TRUE
-      ELSE
-        $OUT[io_id] = FALSE
-      ENDIF
-      COM_ACTION = 0
+       ; Move Joints
+       CASE 2
+         PTP COM_E6AXIS
+         COM_ACTION = 0
+       ; Move axis Linear
+       CASE 3
+         LIN COM_E6POS
+         COM_ACTION = 0
+       ;Move axis ptp
+       CASE 4
+         PTP COM_E6POS
+         COM_ACTION = 0
+       ; Move Circular
+       CASE 5
+         CIRC COM_POS,COM_E6POS
+         COM_ACTION = 0
+       CASE 10
+         COM_ACTCNT = COM_ACTCNT + 1
+         io_id = COM_VALUE1
+         IF COM_VALUE2 > 0.5 THEN
+           $OUT[io_id] = TRUE
+         ELSE
+           $OUT[io_id] = FALSE
+         ENDIF
+         COM_ACTION = 0
     ENDSWITCH
   ENDWHILE
 END
@@ -76,6 +78,6 @@ END
 
 DEF StopMovementInterrupt()
   BRAKE F
-  WAIT FOR $OUT[18]
+  WAIT FOR $IN[10]
   $OUT[17] = FALSE
 END

@@ -70,9 +70,12 @@ def get_tech_doc() -> str:
 
 
 @tool
-def send_robot_to_initial_home_position() -> str:
+def send_robot_to_initial_home_position(Move_type: str = "PTP") -> str:
     """
     Sends the robot to its predefined home position and waits until the robot confirms it has reached the target.
+
+    Args:
+        Move_type (str, optional): Specifies the movement type. Defaults to "PTP". Accepts either "PTP" or "LIN". Pass "LIN" if specified by the user.
 
     Returns:
         str: Success message if the operation completed successfully,
@@ -86,7 +89,7 @@ def send_robot_to_initial_home_position() -> str:
         initial_pos = parse_position_data(initial_pos_str)
 
         cartesian_movement(
-            client, 1332.63, 0, 1270, 178.75, 0, -179.91, Move="PTP"
+            client, 1332.63, 0, 1270, 178.75, 0, -179.91, Move_type=Move_type
         )  # Adjust Z value
         wait_for_target_position(
             client,
@@ -140,7 +143,7 @@ def get_current_position() -> str:
 
 @tool
 def send_movement_command(
-    X: int = 0, Y: int = 0, Z: int = 0, A: int = 0, B: int = 0, C: int = 0
+    X: int = 0, Y: int = 0, Z: int = 0, A: int = 0, B: int = 0, C: int = 0, Move_type: str = "PTP"
 ) -> str:
     """
     Moves the robot by the specified relative distance along each axis in millimeters.
@@ -152,6 +155,7 @@ def send_movement_command(
         A (int, optional): Relative rotation around X-axis in degrees. Defaults to 0.
         B (int, optional): Relative rotation around Y-axis in degrees. Defaults to 0.
         C (int, optional): Relative rotation around Z-axis in degrees. Defaults to 0.
+        Move_type (str, optional): Specifies the movement type. Defaults to "PTP". Accepts either "PTP" or "LIN". Pass "LIN" if specified by the user.
 
     Returns:
         str: Success message with final position coordinates if operation completed successfully,
@@ -209,7 +213,7 @@ def send_movement_command(
             pos_dict["A"],
             pos_dict["B"],
             pos_dict["C"],
-            Move="PTP",
+            Move_type=Move_type,
         )
 
         wait_for_target_position(
@@ -239,13 +243,14 @@ def send_movement_command(
 
 
 @tool
-def send_pick_and_place_command(item2pick: str, location2place: str) -> str:
+def send_pick_and_place_command(item2pick: str, location2place: str, Move_type: str = "PTP") -> str:
     """
     Executes a complete pick and place operation using computer vision and robot control.
 
     Args:
         item2pick (str): The item to pick up. Must be either "box" or "wood" or "orange box".
         location2place (str): The destination location. Must be either "bin" or "Conveyor".
+        Move_type (str, optional): Specifies the movement type. Defaults to "PTP". Accepts either "PTP" or "LIN". Pass "LIN" if specified by the user.
 
     Returns:
         str: Success message if the operation completed successfully,
@@ -316,7 +321,7 @@ def send_pick_and_place_command(item2pick: str, location2place: str) -> str:
         tool_offset = {"X": 0, "Y": 0, "Z": 0, "A": 0, "B": 0, "C": 0}
 
         pick_and_place(
-            client, pick_x, pick_y, pick_z, pick_a, tool_offset, place_coords
+            client, pick_x, pick_y, pick_z, pick_a, tool_offset, place_coords, Move_type=Move_type
         )
 
         control_gripper(client, "open")
