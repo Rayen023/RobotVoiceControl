@@ -4,7 +4,7 @@ An LLM-powered robot control system that enables natural language interaction wi
 
 ## System Architecture
 
-![System Architecture](docs/images/architecture.png)
+![System Architecture](docs/images/architecture.jpg)
 
 The system follows a 5-step pipeline architecture that processes human voice commands into precise robot actions:
 
@@ -15,6 +15,24 @@ The system follows a 5-step pipeline architecture that processes human voice com
 5. **Text-to-Speech Response:** Azure TTS converts the agent's responses back to speech for seamless human interaction.
 
 This architecture enables bidirectional communication between human and robot through natural language, with persistent memory for context-aware conversations.
+
+## Citation
+
+If you use this project in your research, please cite our paper:
+
+```bibtex
+@article{KADRI2025106660,
+title = {LLM-driven agent for speech-enabled control of industrial robots: A case study in snow-crab quality inspection},
+journal = {Results in Engineering},
+volume = {27},
+pages = {106660},
+year = {2025},
+issn = {2590-1230},
+doi = {https://doi.org/10.1016/j.rineng.2025.106660},
+url = {https://www.sciencedirect.com/science/article/pii/S2590123025027276},
+author = {Ibrahim Kadri and Sid Ahmed Selouani and Mohsen Ghribi and Rayen Ghali and Sabrina Mekhoukh},
+keywords = {Large language models (LLMs), Voice interface, KUKA industrial robot, Human-robot interaction, Autonomous robotic planning, Computer vision},}
+```
 
 ## How to Use
 
@@ -36,10 +54,7 @@ This architecture enables bidirectional communication between human and robot th
    │   ├── robot_control.py          # Core robot communication
    │   ├── tts.py                    # Text-to-speech implementation
    │   ├── simple_emotion_detector.py# Emotion recognition
-   │   └── tech_doc.md               # RAG Technical documentation for KUKA
-   ├── docs/
-   │   └── images/
-   │       └── architecture.png      # System architecture diagram
+   │   └── tech_doc.md               # RAG Technical documentation for 
    └── pyproject.toml                # Project dependencies
    ```
 
