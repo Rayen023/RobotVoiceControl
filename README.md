@@ -18,8 +18,6 @@ This architecture enables bidirectional communication between human and robot th
 
 ## Citation
 
-If you use this project in your research, please cite our paper:
-
 ```bibtex
 @article{KADRI2025106660,
 title = {LLM-driven agent for speech-enabled control of industrial robots: A case study in snow-crab quality inspection},
